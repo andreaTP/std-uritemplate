@@ -415,7 +415,8 @@ public class UriTemplate
     {
         if (value == null)
         {
-            return true;
+            // return true;
+            return false;
         }
         else
         {
