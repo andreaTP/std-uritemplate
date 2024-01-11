@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class BenchmarkUriTemplate {
 
-    @Param({"OO", "New", "Micronaut"})
+    @Param({"Std", "VertX", "Micronaut"})
     private String name;
     private UriTemplate uriTemplate;
 
@@ -42,21 +42,23 @@ public class BenchmarkUriTemplate {
         substitutions.put("lang", "en");
         substitutions.put("page", "5");
 
-        if (name.equals("OO")) {
-            uriTemplate = new StdUriTemplateOO();
-        } else  if (name.equals("New")) {
-            uriTemplate = new StdUriTemplateNew();
+        if (name.equals("Std")) {
+            uriTemplate = new StdUriTemplate();
+        } else  if (name.equals("VertX")) {
+            uriTemplate = new UriTemplateVertxWrapper();
         } else if (name.equals("Micronaut")) {
             uriTemplate = new UriTemplateMicronautWrapper();
         } else {
             throw new IllegalArgumentException("No implementation found for " + name);
         }
+
+        uriTemplate.prepare(template, substitutions);
     }
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
     public void benchmark(Blackhole bh) {
-        bh.consume(uriTemplate.benchmark(template, substitutions));
+        bh.consume(uriTemplate.benchmark());
     }
 
 }

@@ -3,16 +3,27 @@ package org.uritemplate;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class StdUriTemplateNew implements UriTemplate {
+public class StdUriTemplate implements UriTemplate {
 
-    // Benchmark Wrapper
-    public String benchmark(final String template, final Map<String, Object> substitutions) {
-        return expand(template, substitutions);
+    private String template = null;
+    private Map<String, Object> substs = null;
+
+    public void prepare(final String template, final Map<String, Object> substitutions) {
+        this.template = template;
+        this.substs = substitutions;
+    }
+
+    public String benchmark() {
+        return expand(template, substs);
     }
 
     // Public API
@@ -21,26 +32,17 @@ public class StdUriTemplateNew implements UriTemplate {
     }
 
     // Private implementation
-//    private final static Character[] RESERVED = new Character[]{'+', '#', '/', ';', '?', '&', ' ', '!', '=', '$', '|', '*', ':', '~', '-' };
-
-    private enum Modifier {
-        NO_MOD,
+    private enum Operator {
+        NO_OP,
         PLUS,
-        DASH,
+        HASH,
         DOT,
         SLASH,
         SEMICOLON,
         QUESTION_MARK,
-        AT;
+        AMP;
     }
 
-//    private static void validateLiteral(Character c, int col) {
-//        for (var reserved: RESERVED) {
-//            if (reserved.equals(c)) {
-//                throw new IllegalArgumentException("Illegal character identified in the token at col:" + col);
-//            }
-//        }
-//    }
     private static void validateLiteral(Character c, int col) {
         switch (c) {
             case '+':
@@ -65,7 +67,7 @@ public class StdUriTemplateNew implements UriTemplate {
     }
 
     private static int getMaxChar(StringBuilder buffer, int col) {
-        if (buffer == null) {
+        if (buffer == null || buffer.length() == 0) {
             return -1;
         } else {
             String value = buffer.toString();
@@ -82,78 +84,85 @@ public class StdUriTemplateNew implements UriTemplate {
         }
     }
 
-    private static Modifier getModifier(Character c, StringBuilder token, int col) {
+    private static Operator getOperator(Character c, StringBuilder token, int col) {
         switch (c) {
-            case '+': return Modifier.PLUS;
-            case '#': return Modifier.DASH;
-            case '.': return Modifier.DOT;
-            case '/': return Modifier.SLASH;
-            case ';': return Modifier.SEMICOLON;
-            case '?': return Modifier.QUESTION_MARK;
-            case '&': return Modifier.AT;
+            case '+': return Operator.PLUS;
+            case '#': return Operator.HASH;
+            case '.': return Operator.DOT;
+            case '/': return Operator.SLASH;
+            case ';': return Operator.SEMICOLON;
+            case '?': return Operator.QUESTION_MARK;
+            case '&': return Operator.AMP;
             default:
                 validateLiteral(c, col);
                 token.append(c);
-                return Modifier.NO_MOD;
+                return Operator.NO_OP;
         }
     }
 
     private static String expandImpl(String str, Map<String, Object> substitutions) {
-        StringBuilder result = new StringBuilder(str.length() * 2);
+        final StringBuilder result = new StringBuilder(str.length() * 2);
 
-        StringBuilder token = null;
+        boolean toToken = false;
+        final StringBuilder token = new StringBuilder();
 
-        Modifier modifier = null;
+        Operator operator = null;
         boolean composite = false;
-        StringBuilder maxCharBuffer = null;
+        boolean toMaxCharBuffer = false;
+        final StringBuilder maxCharBuffer = new StringBuilder(3);
         boolean firstToken = true;
 
         for (var i = 0; i < str.length(); i++) {
             var character = str.charAt(i);
             switch (character) {
                 case '{':
-                    token = new StringBuilder();
+                    toToken = true;
+                    token.setLength(0);
                     firstToken = true;
                     break;
                 case '}':
-                    if (token != null) {
-                        var expanded = expandToken(modifier, token.toString(), composite, getMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
+                    if (toToken) {
+                        var expanded = expandToken(operator, token.toString(), composite, getMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
                         if (expanded && firstToken) {
                             firstToken = false;
                         }
-                        token = null;
-                        modifier = null;
+                        toToken = false;
+                        token.setLength(0);
+                        operator = null;
                         composite = false;
-                        maxCharBuffer = null;
+                        toMaxCharBuffer = false;
+                        maxCharBuffer.setLength(0);
                     } else {
                         throw new IllegalArgumentException("Failed to expand token, invalid at col:" + i);
                     }
                     break;
                 case ',':
-                    if (token != null) {
-                        var expanded = expandToken(modifier, token.toString(), composite, getMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
+                    if (toToken) {
+                        var expanded = expandToken(operator, token.toString(), composite, getMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
                         if (expanded && firstToken) {
                             firstToken = false;
                         }
-                        token = new StringBuilder(token.length() * 2);
+                        token.setLength(0);
                         composite = false;
-                        maxCharBuffer = null;
+                        toMaxCharBuffer = false;
+                        maxCharBuffer.setLength(0);
                         break;
                     }
                     // Intentional fall-through for commas outside the {}
                 default:
-                    if (token != null) {
-                        if (modifier == null) {
-                            modifier = getModifier(character, token, i);
-                        } else if (maxCharBuffer != null) {
+                    if (toToken) {
+                        if (operator == null) {
+                            operator = getOperator(character, token, i);
+                        } else if (toMaxCharBuffer) {
                             if (Character.isDigit(character)) {
                                 maxCharBuffer.append(character);
                             } else {
-                                throw new IllegalArgumentException("Illegal character idetified in the token at col:" + i);
+                                throw new IllegalArgumentException("Illegal character identified in the token at col:" + i);
                             }
                         } else {
                             if (character == ':') {
-                                maxCharBuffer = new StringBuilder(3);
+                                toMaxCharBuffer = true;
+                                maxCharBuffer.setLength(0);
                             } else if (character == '*') {
                                 composite = true;
                             } else {
@@ -168,16 +177,16 @@ public class StdUriTemplateNew implements UriTemplate {
             }
         }
 
-        if (token == null) {
+        if (!toToken) {
             return result.toString();
         } else {
             throw new IllegalArgumentException("Unterminated token");
         }
     }
 
-    private static void addPrefix(Modifier mod, StringBuilder result) {
-        switch (mod) {
-            case DASH:
+    private static void addPrefix(Operator op, StringBuilder result) {
+        switch (op) {
+            case HASH:
                 result.append('#');
                 break;
             case DOT:
@@ -192,7 +201,7 @@ public class StdUriTemplateNew implements UriTemplate {
             case QUESTION_MARK:
                 result.append('?');
                 break;
-            case AT:
+            case AMP:
                 result.append('&');
                 break;
             default:
@@ -200,8 +209,8 @@ public class StdUriTemplateNew implements UriTemplate {
         }
     }
 
-    private static void addSeparator(Modifier mod, StringBuilder result) {
-        switch (mod) {
+    private static void addSeparator(Operator op, StringBuilder result) {
+        switch (op) {
             case DOT:
                 result.append('.');
                 break;
@@ -212,7 +221,7 @@ public class StdUriTemplateNew implements UriTemplate {
                 result.append(';');
                 break;
             case QUESTION_MARK:
-            case AT:
+            case AMP:
                 result.append('&');
                 break;
             default:
@@ -221,60 +230,86 @@ public class StdUriTemplateNew implements UriTemplate {
         }
     }
 
-    private static void addValue(Modifier mod, String token, String value, StringBuilder result, int maxChar) {
-        switch (mod) {
+    private static void addValue(Operator op, String token, Object value, StringBuilder result, int maxChar) {
+        switch (op) {
             case PLUS:
-            case DASH:
-                addExpandedValue(value, result, maxChar, false);
+            case HASH:
+                addExpandedValue(null, value, result, maxChar, false);
                 break;
             case QUESTION_MARK:
-            case AT:
+            case AMP:
                 result.append(token + '=');
-                addExpandedValue(value, result, maxChar, true);
+                addExpandedValue(null, value, result, maxChar, true);
                 break;
             case SEMICOLON:
                 result.append(token);
-                if (!value.isEmpty()) {
-                    result.append("=");
-                }
-                addExpandedValue(value, result, maxChar, true);
+                addExpandedValue("=", value, result, maxChar, true);
                 break;
             case DOT:
             case SLASH:
-            case NO_MOD:
-                addExpandedValue(value, result, maxChar, true);
+            case NO_OP:
+                addExpandedValue(null, value, result, maxChar, true);
         }
     }
 
-    private static void addValueElement(Modifier mod, String token, String value, StringBuilder result, int maxChar) {
-        switch (mod) {
+    private static void addValueElement(Operator op, String token, Object value, StringBuilder result, int maxChar) {
+        switch (op) {
             case PLUS:
-            case DASH:
-                addExpandedValue(value, result, maxChar, false);
+            case HASH:
+                addExpandedValue(null, value, result, maxChar, false);
                 break;
             case QUESTION_MARK:
-            case AT:
+            case AMP:
             case SEMICOLON:
             case DOT:
             case SLASH:
-            case NO_MOD:
-                addExpandedValue(value, result, maxChar, true);
+            case NO_OP:
+                addExpandedValue(null, value, result, maxChar, true);
         }
     }
 
-    private static void addExpandedValue(String value, StringBuilder result, int maxChar, boolean replaceReserved) {
-        var max = (maxChar != -1) ? Math.min(maxChar, value.length()) : value.length();
-        StringBuilder reservedBuffer = null;
+    private static boolean isSurrogate(char cp) {
+        return (cp >= 0xD800 && cp <= 0xDFFF);
+    }
+
+    private static boolean isIprivate(char cp) {
+        return (0xE000 <= cp && cp <= 0xF8FF);
+    }
+
+    private static boolean isUcschar(char cp) {
+        return (0xA0 <= cp && cp <= 0xD7FF)
+                || (0xF900 <= cp && cp <= 0xFDCF)
+                || (0xFDF0 <= cp && cp <= 0xFFEF);
+    }
+
+    private static void addExpandedValue(String prefix, Object value, StringBuilder result, int maxChar, boolean replaceReserved) {
+        String stringValue = convertNativeTypes(value);
+        int max = (maxChar != -1) ? Math.min(maxChar, stringValue.length()) : stringValue.length();
+        result.ensureCapacity(max * 2); // hint to SB
+        boolean toReserved = false;
+        final StringBuilder reservedBuffer = new StringBuilder(3);
+
+        if (max > 0 && prefix != null) {
+            result.append(prefix);
+        }
 
         for (var i = 0; i < max; i++) {
-            char character = value.charAt(i);
+            char character = stringValue.charAt(i);
 
             if (character == '%' && !replaceReserved) {
-                reservedBuffer = new StringBuilder();
+                toReserved = true;
+                reservedBuffer.setLength(0);
             }
 
-            if (reservedBuffer != null) {
-                reservedBuffer.append(character);
+            String toAppend = Character.toString(character);
+            if (isSurrogate(character)) {
+                toAppend = URLEncoder.encode(Character.toString(stringValue.codePointAt(i++)), StandardCharsets.UTF_8);
+            } else if (replaceReserved || isUcschar(character) || isIprivate(character)) {
+                toAppend = URLEncoder.encode(toAppend, StandardCharsets.UTF_8);
+            }
+
+            if (toReserved) {
+                reservedBuffer.append(toAppend);
 
                 if (reservedBuffer.length() == 3) {
                     boolean isEncoded = false;
@@ -292,7 +327,8 @@ public class StdUriTemplateNew implements UriTemplate {
                         // only if !replaceReserved
                         result.append(reservedBuffer.substring(1));
                     }
-                    reservedBuffer = null;
+                    toReserved = false;
+                    reservedBuffer.setLength(0);
                 }
             } else {
                 if (character == ' ') {
@@ -300,22 +336,14 @@ public class StdUriTemplateNew implements UriTemplate {
                 } else if (character == '%') {
                     result.append("%25");
                 } else {
-                    if (replaceReserved) {
-                        result.append(URLEncoder.encode(new String(new char[]{character}), StandardCharsets.UTF_8));
-                    } else {
-                        result.append(character);
-                    }
+                    result.append(toAppend);
                 }
             }
         }
 
-        if (reservedBuffer != null) {
+        if (toReserved) {
             result.append("%25");
-            if (replaceReserved) {
-                result.append(URLEncoder.encode(reservedBuffer.substring(1), StandardCharsets.UTF_8));
-            } else {
-                result.append(reservedBuffer.substring(1));
-            }
+            result.append(reservedBuffer.substring(1));
         }
     }
 
@@ -330,13 +358,16 @@ public class StdUriTemplateNew implements UriTemplate {
     }
 
     enum SubstitutionType {
+        EMPTY,
         STRING,
         LIST,
         MAP;
     }
 
     private static SubstitutionType getSubstitutionType(Object value, int col) {
-        if (value instanceof String || value == null) {
+        if (value == null) {
+            return SubstitutionType.EMPTY;
+        } else if (isNativeType(value)) {
             return SubstitutionType.STRING;
         } else if (isList(value)) {
             return SubstitutionType.LIST;
@@ -360,9 +391,42 @@ public class StdUriTemplateNew implements UriTemplate {
         }
     }
 
+    private static boolean isNativeType(Object value) {
+        if (value instanceof String ||
+                value instanceof Boolean ||
+                value instanceof Integer ||
+                value instanceof Long ||
+                value instanceof Float ||
+                value instanceof Double ||
+                value instanceof Date ||
+                value instanceof OffsetDateTime) {
+            return true;
+        }
+        return false;
+    }
+
+    private static String convertNativeTypes(Object value) {
+        if (value instanceof String) {
+            return (String)value;
+        } else if (value instanceof Boolean ||
+                value instanceof Integer ||
+                value instanceof Long ||
+                value instanceof Float ||
+                value instanceof Double) {
+            return value.toString();
+        } else if (value instanceof Date) {
+            return ((Date) value).toInstant().atOffset(ZoneOffset.UTC).format(RFC3339);
+        } else if (value instanceof OffsetDateTime) {
+            return ((OffsetDateTime) value).format(RFC3339);
+        }
+        throw new IllegalArgumentException("Illegal class passed as substitution, found " + value.getClass());
+    }
+
+    private static final DateTimeFormatter RFC3339 = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[XXX][VV]");
+
     // returns true if expansion happened
     private static boolean expandToken(
-            Modifier modifier,
+            Operator operator,
             String token,
             boolean composite,
             int maxChar,
@@ -375,64 +439,57 @@ public class StdUriTemplateNew implements UriTemplate {
         }
 
         Object value = substitutions.get(token);
-        if (value instanceof Integer ||
-                value instanceof Long ||
-                value instanceof Float ||
-                value instanceof Double) {
-            value = value.toString();
-        }
-
         var substType = getSubstitutionType(value, col);
-        if (isEmpty(substType, value)) {
+        if (substType == SubstitutionType.EMPTY || isEmpty(substType, value)) {
             return false;
         }
 
         if (firstToken) {
-            addPrefix(modifier, result);
+            addPrefix(operator, result);
         } else {
-            addSeparator(modifier, result);
+            addSeparator(operator, result);
         }
 
         switch (substType) {
             case STRING:
-                addStringValue(modifier, token, (String)value, result, maxChar);
+                addStringValue(operator, token, (Object)value, result, maxChar);
                 break;
             case LIST:
-                addListValue(modifier, token, (List<String>)value, result, maxChar, composite);
+                addListValue(operator, token, (List<Object>)value, result, maxChar, composite);
                 break;
             case MAP:
-                addMapValue(modifier, token, (Map<String, String>)value, result, maxChar, composite);
+                addMapValue(operator, token, (Map<String, Object>)value, result, maxChar, composite);
                 break;
         }
 
         return true;
     }
 
-    private static boolean addStringValue(Modifier modifier, String token, String value, StringBuilder result, int maxChar) {
-        addValue(modifier, token, value, result, maxChar);
+    private static boolean addStringValue(Operator operator, String token, Object value, StringBuilder result, int maxChar) {
+        addValue(operator, token, value, result, maxChar);
         return true;
     }
 
-    private static boolean addListValue(Modifier modifier, String token, List<String> value, StringBuilder result, int maxChar, boolean composite) {
+    private static boolean addListValue(Operator operator, String token, List<Object> value, StringBuilder result, int maxChar, boolean composite) {
         boolean first = true;
         for (var v: value) {
             if (first) {
-                addValue(modifier, token, v, result, maxChar);
+                addValue(operator, token, v, result, maxChar);
                 first = false;
             } else {
                 if (composite) {
-                    addSeparator(modifier, result);
-                    addValue(modifier, token, v, result, maxChar);
+                    addSeparator(operator, result);
+                    addValue(operator, token, v, result, maxChar);
                 } else {
                     result.append(',');
-                    addValueElement(modifier, token, v, result, maxChar);
+                    addValueElement(operator, token, v, result, maxChar);
                 }
             }
         }
         return !first;
     }
 
-    private static boolean addMapValue(Modifier modifier, String token, Map<String, String> value, StringBuilder result, int maxChar, boolean composite) {
+    private static boolean addMapValue(Operator operator, String token, Map<String, Object> value, StringBuilder result, int maxChar, boolean composite) {
         boolean first = true;
         if (maxChar != -1) {
             throw new IllegalArgumentException("Value trimming is not allowed on Maps");
@@ -440,20 +497,20 @@ public class StdUriTemplateNew implements UriTemplate {
         for (var v : value.entrySet()) {
             if (composite) {
                 if (!first) {
-                    addSeparator(modifier, result);
+                    addSeparator(operator, result);
                 }
-                addValueElement(modifier, token, v.getKey(), result, maxChar);
+                addValueElement(operator, token, v.getKey(), result, maxChar);
                 result.append('=');
             } else {
                 if (first) {
-                    addValue(modifier, token, v.getKey(), result, maxChar);
+                    addValue(operator, token, v.getKey(), result, maxChar);
                 } else {
                     result.append(',');
-                    addValueElement(modifier, token, v.getKey(), result, maxChar);
+                    addValueElement(operator, token, v.getKey(), result, maxChar);
                 }
                 result.append(',');
             }
-            addValueElement(modifier, token, v.getValue(), result, maxChar);
+            addValueElement(operator, token, v.getValue(), result, maxChar);
             first = false;
         }
         return !first;

@@ -4,8 +4,16 @@ import java.util.Map;
 
 public class UriTemplateMicronautWrapper implements UriTemplate {
 
-    public String benchmark(final String template, final Map<String, Object> substitutions) {
-        return new UriTemplateMicronaut(template).expand(substitutions);
+    private String template = null;
+    private Map<String, Object> substs = null;
+
+    public void prepare(final String template, final Map<String, Object> substitutions) {
+        this.template = template;
+        this.substs = substitutions;
+    }
+
+    public String benchmark() {
+        return new UriTemplateMicronaut(template).expand(substs);
     }
 
 }
