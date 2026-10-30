@@ -339,7 +339,7 @@ if op == DOT: append(result, '.')
 elif op == SLASH: append(result, '/')
 elif op == SEMICOLON: append(result, ';')
 elif op == QUESTION_MARK or op == AMP: append(result, '&')
-else: append(result, ',')
+else: append(result, ',')   # NO_OP, PLUS and HASH all separate with a comma
 ```
 
 ### fn addStringValue(op: Operator, token: string, value: any, result: string builder, maxChar: int) -> void
