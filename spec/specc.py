@@ -246,9 +246,9 @@ def claude_cli_version():
         return "unknown"
 
 
-def generate_with_claude_cli(system_prompt, user_prompt, model, verbose=False):
-    cmd = ["claude", "-p", "--model", model, "--output-format", "json", "--no-session-persistence", "--tools", "", "--system-prompt", system_prompt]
-    if verbose:
+def generate_with_claude_cli(system_prompt, user_prompt, args):
+    cmd = ["claude", "-p", "--model", args.model, "--output-format", "json", "--no-session-persistence", "--tools", "", "--system-prompt", system_prompt]
+    if args.verbose:
         print("  calling: %s (prompt %d chars)" % (" ".join(cmd[:6]), len(user_prompt)))
     proc = subprocess.run(cmd, input=user_prompt, capture_output=True, text=True, cwd=ROOT)
     if proc.returncode != 0:
@@ -256,7 +256,26 @@ def generate_with_claude_cli(system_prompt, user_prompt, model, verbose=False):
     data = json.loads(proc.stdout)
     if data.get("is_error"):
         raise SystemExit("claude CLI returned an error: %s" % data.get("result"))
-    return data["result"], {"cost_usd": data.get("total_cost_usd"), "duration_ms": data.get("duration_api_ms")}
+    usage = {"cost_usd": data.get("total_cost_usd"), "duration_ms": data.get("duration_api_ms")}
+    return data["result"], usage, {"name": "claude-cli", "version": claude_cli_version(), "model": args.model}
+
+
+def generate_with_command(system_prompt, user_prompt, args):
+    """Any program: system prompt in $SPECC_SYSTEM_PROMPT, user prompt on stdin, answer on stdout."""
+    if not args.backend_command:
+        raise SystemExit("--backend command needs --backend-command")
+    env = dict(os.environ, SPECC_SYSTEM_PROMPT=system_prompt, SPECC_MODEL=args.model or "")
+    if args.verbose:
+        print("  calling: %s (prompt %d chars)" % (args.backend_command, len(user_prompt)))
+    started = datetime.datetime.now()
+    proc = subprocess.run(args.backend_command, shell=True, input=user_prompt, capture_output=True, text=True, cwd=ROOT, env=env)
+    if proc.returncode != 0:
+        raise SystemExit("backend command failed (%d):\n%s" % (proc.returncode, proc.stderr[-2000:]))
+    usage = {"cost_usd": None, "duration_ms": int((datetime.datetime.now() - started).total_seconds() * 1000)}
+    return proc.stdout, usage, {"name": "command", "command": args.backend_command, "model": args.model or ""}
+
+
+BACKENDS = {"claude-cli": generate_with_claude_cli, "command": generate_with_command}
 
 
 def extract_code_block(text):
@@ -371,9 +390,9 @@ def cmd_build(args):
     failures_text = "(none)"
     stats = []
     for attempt in range(1, args.max_attempts + 1):
-        print("[%s] attempt %d/%d: generating with %s ..." % (target, attempt, args.max_attempts, args.model))
+        print("[%s] attempt %d/%d: generating with %s %s ..." % (target, attempt, args.max_attempts, args.backend, args.model or ""))
         user_prompt = render_prompt(user_tpl, spec, target, meta, changes, anchor_block, failures_text)
-        result, usage = generate_with_claude_cli(system_tpl, user_prompt, args.model, verbose=args.verbose)
+        result, usage, backend_info = BACKENDS[args.backend](system_tpl, user_prompt, args)
         stats.append(usage)
         code = extract_code_block(result)
         expected_header = "\n".join(header_lines(spec, target, meta))
@@ -393,14 +412,14 @@ def cmd_build(args):
                 "chunk_hashes": hashes,
                 "target_notes_sha256": notes_sha,
                 "prompt_template_sha256": sha256(prompt_text),
-                "backend": {"name": "claude-cli", "version": claude_cli_version(), "model": args.model},
+                "backend": backend_info,
                 "tck": {"cases": total, "result": "pass"},
                 "attempts": attempt,
-                "cost_usd": round(sum(s["cost_usd"] or 0 for s in stats), 4),
+                "cost_usd": round(sum(s["cost_usd"] or 0 for s in stats), 4) if any(s["cost_usd"] is not None for s in stats) else None,
                 "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             }
             save_lock(lock)
-            print("[%s] lock updated; total cost $%.3f over %d attempt(s)" % (target, lock["targets"][target]["cost_usd"], attempt))
+            print("[%s] lock updated; total cost $%.3f over %d attempt(s)" % (target, lock["targets"][target]["cost_usd"] or 0, attempt))
             return 0
         print(format_failures(failures))
         failures_text = format_failures(failures)
@@ -486,7 +505,10 @@ def main():
     sub.add_parser("parse").set_defaults(fn=cmd_parse)
     b = sub.add_parser("build")
     b.add_argument("--target", required=True)
-    b.add_argument("--model", default=DEFAULT_MODEL)
+    b.add_argument("--backend", choices=sorted(BACKENDS), default="claude-cli")
+    b.add_argument("--backend-command", help="for --backend command: shell command that reads the user prompt on stdin, "
+                   "the system prompt from $SPECC_SYSTEM_PROMPT and $SPECC_MODEL, and prints the answer")
+    b.add_argument("--model", default=None, help="model name passed to the backend (default for claude-cli: %s)" % DEFAULT_MODEL)
     b.add_argument("--max-attempts", type=int, default=2)
     b.add_argument("--jobs", type=int, default=8)
     b.add_argument("--force", action="store_true")
@@ -500,6 +522,8 @@ def main():
     t.add_argument("--verbose", action="store_true")
     t.set_defaults(fn=cmd_tck)
     args = ap.parse_args()
+    if args.cmd == "build" and args.backend == "claude-cli" and not args.model:
+        args.model = DEFAULT_MODEL
     sys.exit(args.fn(args))
 
 

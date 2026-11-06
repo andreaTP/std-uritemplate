@@ -1,5 +1,11 @@
 # std-uritemplate
 
+> **Experimental branch.** On this branch the Python, Java and C# implementations are
+> generated from [`std-uritemplate.spec.md`](std-uritemplate.spec.md) by
+> [`spec/specc.py`](spec/specc.py); the other implementations are temporarily removed.
+> Read [`spec/README.md`](spec/README.md) for what this is, the results so far, and
+> how to try it with another model or harness.
+
 [![GitHub license](https://img.shields.io/github/license/std-uritemplate/std-uritemplate.svg)](https://github.com/std-uritemplate/std-uritemplate/blob/main/LICENSE)
 [![Build Status](https://github.com/std-uritemplate/std-uritemplate/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/std-uritemplate/std-uritemplate/blob/main/.github/workflows/test.yml)
 [![GitHub Release](https://img.shields.io/github/tag/std-uritemplate/std-uritemplate.svg?style=flat&color=green)](https://github.com/std-uritemplate/std-uritemplate/tags)
