@@ -496,7 +496,7 @@ def main():
     t.set_defaults(fn=cmd_tck)
     args = ap.parse_args()
     if args.cmd == "build" and not args.backend:
-        ap.error("build needs --backend or $SPECC_BACKEND, e.g. --backend spec/backends/claude-cli.sh")
+        ap.error("build needs --backend or $SPECC_BACKEND, e.g. --backend spec/backends/openai_sdk.py")
     sys.exit(args.fn(args))
 
 

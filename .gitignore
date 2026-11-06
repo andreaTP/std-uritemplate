@@ -15,7 +15,7 @@ tests/differential/__pycache__
 tests/differential/.venv
 # spec compiler scratch
 spec/.scratch/
-spec/__pycache__/
+spec/**/__pycache__/
 csharp/test/test/
 csharp/**/bin/
 csharp/**/obj/

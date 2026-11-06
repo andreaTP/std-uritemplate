@@ -65,7 +65,7 @@ every pair of targets must agree on random inputs the fixtures never covered.
 
 ## Results so far
 
-All three targets were generated with `claude-opus-5-5` through the Claude Code CLI.
+All three targets were generated with `claude-opus-5-5` through a Claude Code CLI backend (since removed; see Try it).
 
 | Target | Conformance | Attempts | Cost | Notes |
 |---|---|---|---|---|
@@ -86,49 +86,69 @@ All three targets were generated with `claude-opus-5-5` through the Claude Code 
 
 ## Try it
 
-Prerequisites: Python 3.8+, `jq`, the toolchains of the targets you build (Poetry, JDK +
-jbang, .NET SDK 8+), and a backend. Clone with `--recurse-submodules` for the fixtures.
+Prerequisites: Python 3.9+, `jq`, [uv](https://docs.astral.sh/uv/) (or `pip install
+openai`), the toolchains of the targets you build (Poetry, JDK + jbang, .NET SDK 8+), and
+an API key for an OpenAI-compatible endpoint. Clone with `--recurse-submodules` for the
+fixtures.
 
 ```
 python3 spec/specc.py parse                     # what the spec declares
 python3 spec/specc.py check                     # no model: is everything consistent
 python3 spec/specc.py tck --target java         # conformance suite, parallel
-export SPECC_BACKEND=spec/backends/claude-cli.sh SPECC_MODEL=claude-opus-5-5
+
+export OPENAI_API_KEY=sk-...
+export SPECC_BACKEND=spec/backends/openai_sdk.py SPECC_MODEL=gpt-5
 python3 spec/specc.py build --target java       # regenerate if the spec changed
-python3 spec/specc.py build --target java --force --model claude-sonnet-5-5
+python3 spec/specc.py build --target java --force --model gpt-5-mini
 ```
 
-### Backends
+### Providing a model and a key
 
-The tool has no built-in model. `build` runs whatever `--backend` (or `$SPECC_BACKEND`)
-names, under a three-line contract:
+The tool has no built-in model and talks to no vendor itself. `build` runs whatever
+`--backend` (or `$SPECC_BACKEND`) names, under a three-line contract: the user prompt on
+stdin, the system prompt in `$SPECC_SYSTEM_PROMPT` and the `--model` value in
+`$SPECC_MODEL`, the answer on stdout (one fenced code block, or raw code).
 
-- the user prompt arrives on stdin;
-- the system prompt is in `$SPECC_SYSTEM_PROMPT`, the `--model` value in `$SPECC_MODEL`;
-- the answer goes to stdout, ideally as one fenced code block (raw code is accepted too).
+`spec/backends/openai_sdk.py` is the stock backend. It uses the official `openai` Python
+package against any endpoint that speaks the chat completions API, and takes its
+configuration from the SDK's own environment variables:
 
-`spec/backends/` has three scripts:
+| Variable | Meaning |
+|---|---|
+| `OPENAI_API_KEY` | required: the key or token for the endpoint |
+| `OPENAI_BASE_URL` | optional: endpoint, default `https://api.openai.com/v1` |
+| `SPECC_MODEL` or `--model` | required: model name as the endpoint knows it |
+
+The script declares its dependency inline, so `uv run spec/backends/openai_sdk.py` (what
+the shebang does) installs the SDK into a cache on first use; with `pip install openai`
+it also runs under plain `python3`. Providers that work with it unchanged:
 
 ```
-# Claude Code CLI, non-interactive, tools disabled (what produced the results above)
-python3 spec/specc.py build --target python --force \
-  --backend spec/backends/claude-cli.sh --model claude-opus-5-5
+# OpenAI
+export OPENAI_API_KEY=sk-...
+python3 spec/specc.py build --target python --force --backend spec/backends/openai_sdk.py --model gpt-5
 
-# any OpenAI-compatible chat completions endpoint: OpenAI, GitHub Models, Ollama, vLLM ...
-# (needs OPENAI_API_KEY; OPENAI_BASE_URL for anything but api.openai.com)
-python3 spec/specc.py build --target python --force \
-  --backend spec/backends/openai-compatible.sh --model <model>
+# GitHub Models (Copilot's catalogue): a GitHub token with the models:read permission
+export OPENAI_API_KEY=github_pat_... OPENAI_BASE_URL=https://models.github.ai/inference
+python3 spec/specc.py build --target python --force --backend spec/backends/openai_sdk.py --model openai/gpt-5
+
+# a local model through Ollama, vLLM, llama.cpp or LM Studio (any non-empty key)
+export OPENAI_API_KEY=local OPENAI_BASE_URL=http://localhost:11434/v1
+python3 spec/specc.py build --target python --force --backend spec/backends/openai_sdk.py --model qwen3-coder
 
 # no model at all: replay the committed file, to exercise the pipeline
-python3 spec/specc.py build --target python --force \
-  --backend 'spec/backends/replay.sh python/stduritemplate/__init__.py'
+python3 spec/specc.py build --target python --force --backend 'spec/backends/replay.sh python/stduritemplate/__init__.py'
 ```
 
-A coding agent CLI works the same way: wrap it in a script that honours the contract.
-The lock records the backend command and model, so a run with another model is a
-comparable artifact: attempts, duration, and the diff of the generated file against the
-committed one. The OpenAI-compatible script was not exercised in this repository; treat
-it as a template.
+Any other model, SDK or coding-agent CLI works through a script of your own that honours
+the contract. The lock records the backend command and model, so a run with another
+model is a comparable artifact: attempts, duration, and the diff of the generated file
+against the committed one.
+
+The backend was exercised in this repository against a local stand-in endpoint (request
+shape and response parsing), not against a paid provider. The three committed files were
+produced earlier by a Claude Code CLI backend script that has since been removed; the
+lock still names it, and your first `--force` run replaces that record.
 
 What to report from a run: the model, attempts and duration from the lock; whether the
 anchor was respected (`git diff --stat` of the target file after a `--force` run with no
