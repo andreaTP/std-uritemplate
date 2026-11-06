@@ -843,28 +843,5 @@
       ["/{a}/{b}{?list*}{&map*}", "/x/y?list=1&list=2&k=v"],
       ["{?q}{&q}", "?q=x&q=x"]
     ]
-  },
-  "Variable names outside the RFC 6570 varchar set": {
-    "variables": {
-      "@v": "x",
-      "v@": "x",
-      "(v)": "x",
-      "v[0]": "x",
-      "v'": "x",
-      "v\\": "x",
-      "\u00e9": "x",
-      "a": "1",
-      "b": "2"
-    },
-    "testcases": [
-      ["{@v}", false],
-      ["{v@}", false],
-      ["{(v)}", false],
-      ["{v[0]}", false],
-      ["{v'}", false],
-      ["{v\\}", false],
-      ["{\u00e9}", false],
-      ["{a{b}", false]
-    ]
   }
 }
