@@ -479,9 +479,9 @@ for b in utf8Bytes(c): append(result, '%' + twoUppercaseHexDigits(b))
 ## D. Targets
 
 Each target section starts with a `target` block of `key: value` lines read by the
-tool, followed by idiom notes passed verbatim to the generator. `generated: false`
-targets are documented here but still maintained by hand; the notes are where the
-knowledge for generating them later accumulates.
+tool, followed by idiom notes passed verbatim to the generator. Only ported
+implementations are listed; a target is added here when it is generated from this
+file.
 
 ### target python
 
@@ -510,73 +510,6 @@ comment: "#"
 - `isList`: `isinstance(value, list)`; `isMap`: `isinstance(value, dict)`.
 - Map iteration order is insertion order, use it as-is.
 - Type hints on every method; no docstrings needed; keep lines under 100 chars.
-
-### target java
-
-```target
-file: java/src/main/java/io/github/stduritemplate/StdUriTemplate.java
-harness: java
-generated: false
-comment: "//"
-```
-
-- Java 8 compatible. Strings are UTF-16: iterate with `codePointAt` /
-  `Character.charCount`, count prefix length in code points.
-- `switch` falls through; the literal-comma case relies on an explicit
-  fall-through comment.
-- Errors are `IllegalArgumentException`.
-
-### target go
-
-```target
-file: go/v2/stduritemplate.go
-harness: go
-generated: false
-comment: "//"
-```
-
-- Also mirrored into `go/stduritemplate.go` (v1, adds `time.Time`).
-- JSON maps do not preserve order: sort map keys for predictable output.
-- Unsupported value types must return an error, never be skipped.
-
-### target swift
-
-```target
-file: swift/stduritemplate/Sources/stduritemplate/StdUriTemplate.swift
-harness: swift
-generated: false
-comment: "//"
-```
-
-- `switch` does not fall through: the literal-comma case needs an explicit
-  `fallthrough`.
-- Count prefix length in `unicodeScalars`, not grapheme clusters.
-- Sort map keys for predictable output.
-
-### target ruby
-
-```target
-file: ruby/lib/stduritemplate.rb
-harness: ruby
-generated: false
-comment: "#"
-```
-
-- The library file must `require 'uri'` itself if it uses `URI`; the test wrapper
-  requiring it is not enough.
-
-### target dart
-
-```target
-file: dart/lib/std_uritemplate.dart
-harness: dart
-generated: false
-comment: "//"
-```
-
-- `switch` does not fall through; `continue` inside a `switch` jumps to the loop,
-  so the literal-comma case must be written explicitly.
-- Run `dart format` on the output.
 
 ## E. Conformance
 

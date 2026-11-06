@@ -1,5 +1,5 @@
 {
-  "spec_sha256": "4587ad4de315f9b8856486e3cd76ed4504cb9f2bf51cbe9240fa0345ddeafe58",
+  "spec_sha256": "4b71fe5e38d49bcb1fe768eac330af3abbfac2fa895c7eb4b903822c239a2592",
   "targets": {
     "python": {
       "attempts": 1,
@@ -41,7 +41,7 @@
       "cost_usd": 0.2688,
       "file": "python/stduritemplate/__init__.py",
       "generated_at": "2026-10-30T13:32:12Z",
-      "output_sha256": "1b71dcb7ad0080a5af1858daee2949a0494ad1881a6d4481cc7151d8981c7198",
+      "output_sha256": "7862a051fdcb0df2d78f5a8330a72e6c59e3af1079f1d01e09f7a855a62ba126",
       "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
       "target_notes_sha256": "f796b93babb5df4bbea6e8c5c85e8c667df9c6bc80a7c25b41f49f37e45c30ac",
       "tck": {

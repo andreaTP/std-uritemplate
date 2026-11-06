@@ -341,6 +341,8 @@ def cmd_build(args):
         if prev["prompt_template_sha256"] != sha256(prompt_text):
             changed.append("prompt template")
         if not changed and not args.force:
+            if lock.get("spec_sha256") != spec.sha:
+                return refresh_header(spec, target, meta, lock, out_path)
             print("%s: up to date (no spec change since last build); use --force to regenerate" % target)
             return 0
         changes = "\n".join("- " + c for c in changed) if changed else "- none (forced regeneration)"
@@ -396,6 +398,21 @@ def cmd_build(args):
         changes = "- previous attempt failed conformance; fix the listed cases"
     print("[%s] giving up after %d attempts; the last output is left in %s" % (target, args.max_attempts, meta["file"]))
     return 1
+
+
+def refresh_header(spec, target, meta, lock, out_path):
+    # The spec changed outside this target's chunks: only the header hash is stale.
+    with open(out_path, encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    header = header_lines(spec, target, meta)
+    code = "\n".join(header + lines[len(header):])
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(code)
+    lock["spec_sha256"] = spec.sha
+    lock["targets"][target]["output_sha256"] = sha256(code)
+    save_lock(lock)
+    print("%s: no chunk changed; refreshed the header hash without regenerating" % target)
+    return 0
 
 
 def cmd_check(args):
