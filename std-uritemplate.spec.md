@@ -511,6 +511,77 @@ comment: "#"
 - Map iteration order is insertion order, use it as-is.
 - Type hints on every method; no docstrings needed; keep lines under 100 chars.
 
+### target java
+
+```target
+file: java/src/main/java/io/github/stduritemplate/StdUriTemplate.java
+harness: java
+generated: true
+comment: "//"
+```
+
+- Java 8 source level: no `var`, no switch expressions, no text blocks, no records,
+  no `String.repeat`. Imports only from `java.util` and
+  `java.nio.charset.StandardCharsets`; never `java.util.regex`, never
+  `java.net.URLEncoder` / `URLDecoder`.
+- Package `io.github.stduritemplate`, `public class StdUriTemplate` with the single
+  public method `public static String expand(String template, Map<String, Object>
+  substitutions)`. Everything else is `private static`. The two enums are private
+  nested enums named `Operator` and `SubstitutionType` with the spec's member names.
+- Strings are UTF-16: walk `template` with `codePointAt(i)` and advance by
+  `Character.charCount(cp)`; the reported column is the `char` index. Count prefix
+  length in code points. Append a code point with `appendCodePoint`.
+- `isAlpha`, `isDigit`, `isHexDigit` are ASCII range checks, never
+  `Character.isDigit` / `isLetter`.
+- Builders are `StringBuilder`; a `null` builder state is a `null` reference.
+- Errors are `IllegalArgumentException`.
+- Binding: the conformance harness deserialises JSON with Jackson, which yields
+  `String`, `Boolean`, `Integer`, `Long`, `Double`, `ArrayList` and
+  `LinkedHashMap`. `isNativeType` accepts `String`, `Boolean`, `Integer`, `Long`,
+  `Float`, `Double`; `isList` is `instanceof List`; `isMap` is `instanceof Map`.
+  `convertNativeTypes` uses `toString()` for numbers and booleans.
+- Map iteration is `entrySet()` order. Unchecked casts to `List<Object>` and
+  `Map<String, Object>` are fine.
+- `pctEncode`: `new String(Character.toChars(cp)).getBytes(StandardCharsets.UTF_8)`,
+  then `String.format("%%%02X", b & 0xFF)` per byte.
+
+### target csharp
+
+```target
+file: csharp/Std.UriTemplate.cs
+harness: csharp
+generated: true
+comment: "//"
+```
+
+- Must compile for `netstandard2.0` and `net8.0` with `Nullable` enabled and
+  `TreatWarningsAsErrors`: no `System.Text.Rune`, no index/range operators, no
+  `string.Contains(char)`; annotate nullable parameters (`string? prefix`,
+  `StringBuilder? buffer`). Usings only: `System`, `System.Collections`,
+  `System.Collections.Generic`, `System.Globalization`, `System.Text`; never
+  `System.Text.RegularExpressions`.
+- File-scoped `namespace Std;` and `public class UriTemplate` with the single public
+  method `public static string Expand(string template, IReadOnlyDictionary<string,
+  object> substitutions)`. Everything else is `private static`, PascalCase. The two
+  enums are private nested enums named `Operator` and `SubstitutionType` with the
+  spec's member names.
+- Strings are UTF-16: walk with `char.IsHighSurrogate` and `char.ConvertToUtf32`;
+  the reported column is the `char` index. Count prefix length in code points.
+  Append a code point with `char.ConvertFromUtf32`.
+- `IsAlpha`, `IsDigit`, `IsHexDigit` are ASCII range checks, never `char.IsDigit`.
+- Builders are `StringBuilder`; a `null` builder state is a `null` reference.
+- Errors are `ArgumentException`.
+- Binding: the conformance harness deserialises JSON with Newtonsoft.Json into
+  `string`, `long`, `double`, `bool`, `null`, `List<object>` and
+  `Dictionary<string, object>`. `IsNativeType` accepts `string`, `bool`, `int`,
+  `long`, `float`, `double`, `decimal`; `IsList` is `value is IList`; `IsMap` is
+  `value is IDictionary`. `ConvertNativeTypes` formats numbers with
+  `CultureInfo.InvariantCulture` and booleans as lowercase `true` / `false`.
+- Map iteration: cast to `IDictionary` and iterate `DictionaryEntry`, key as
+  `string`.
+- `pctEncode`: `Encoding.UTF8.GetBytes(char.ConvertFromUtf32(cp))`, then
+  `b.ToString("X2")` after `%`.
+
 ## E. Conformance
 
 The contract is the fixture set, run by `tests/test.sh <lang>` and by

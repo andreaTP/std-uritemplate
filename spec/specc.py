@@ -23,7 +23,11 @@ LOCK_PATH = os.path.join(ROOT, "std-uritemplate.lock.json")
 PROMPT_PATH = os.path.join(ROOT, "spec", "prompts", "generate.md")
 FIXTURE_DIRS = ["uritemplate-test", "uritemplate-test-additional"]
 DEFAULT_MODEL = "claude-opus-5-5"
-FORBIDDEN_IMPORTS = {"python": ["import re", "from re ", "import urllib", "from urllib"]}
+FORBIDDEN_IMPORTS = {
+    "python": ["import re", "from re ", "import urllib", "from urllib"],
+    "java": ["import java.util.regex", "import java.net.URLEncoder", "import java.net.URLDecoder"],
+    "csharp": ["using System.Text.RegularExpressions"],
+}
 
 
 def sha256(text):
@@ -199,7 +203,13 @@ def run_case(harness_dir, case, scratch):
 def run_tck(harness, cases=None, jobs=8, verbose=False):
     harness_dir = os.path.join(ROOT, harness)
     cases = cases or load_cases()
-    subprocess.run(["bash", os.path.join(harness_dir, "init.sh")], check=True, capture_output=not verbose)
+    init = subprocess.run(["bash", os.path.join(harness_dir, "init.sh")], capture_output=True, text=True)
+    if init.returncode != 0:
+        log = (init.stdout + init.stderr).strip().splitlines()
+        errors = [line for line in log if "error" in line.lower()] or log
+        return 0, [{"file": "init.sh", "group": "build", "template": "(build failed)", "variables": {},
+                    "expected": ["a successful build"], "got": "exit %d" % init.returncode,
+                    "stderr": "\n".join(errors[-15:])}]
     scratch = tempfile.mkdtemp(prefix="specc-tck-")
     failures = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
@@ -220,7 +230,7 @@ def format_failures(failures, limit=12):
         out.append("- template: %s\n  variables: %s\n  expected one of: %s\n  got: %s" % (
             f["template"], json.dumps(f["variables"], ensure_ascii=False), json.dumps(f["expected"], ensure_ascii=False), f["got"]))
         if f["stderr"]:
-            out.append("  stderr: " + f["stderr"].splitlines()[-1])
+            out.append("  stderr: " + f["stderr"] if f["file"] == "init.sh" else "  stderr: " + f["stderr"].splitlines()[-1])
     if len(failures) > limit:
         out.append("- ... and %d more" % (len(failures) - limit))
     return "\n".join(out)
@@ -341,7 +351,7 @@ def cmd_build(args):
         if prev["prompt_template_sha256"] != sha256(prompt_text):
             changed.append("prompt template")
         if not changed and not args.force:
-            if lock.get("spec_sha256") != spec.sha:
+            if lock.get("spec_sha256") != spec.sha or not header_current(spec, target, meta, out_path):
                 return refresh_header(spec, target, meta, lock, out_path)
             print("%s: up to date (no spec change since last build); use --force to regenerate" % target)
             return 0
@@ -375,6 +385,7 @@ def cmd_build(args):
         total, failures = run_tck(meta["harness"], cases=cases, jobs=args.jobs, verbose=args.verbose)
         print("[%s] %d/%d cases passed" % (target, total - len(failures), total))
         if not failures:
+            lock = load_lock()  # another build may have written it meanwhile
             lock["spec_sha256"] = spec.sha
             lock["targets"][target] = {
                 "file": meta["file"],
@@ -398,6 +409,13 @@ def cmd_build(args):
         changes = "- previous attempt failed conformance; fix the listed cases"
     print("[%s] giving up after %d attempts; the last output is left in %s" % (target, args.max_attempts, meta["file"]))
     return 1
+
+
+def header_current(spec, target, meta, out_path):
+    if not os.path.exists(out_path):
+        return False
+    with open(out_path, encoding="utf-8") as f:
+        return f.read().startswith("\n".join(header_lines(spec, target, meta)))
 
 
 def refresh_header(spec, target, meta, lock, out_path):

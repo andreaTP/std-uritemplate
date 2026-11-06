@@ -1,4 +1,7 @@
-﻿#nullable disable
+// GENERATED FILE - DO NOT EDIT.
+// Source: std-uritemplate.spec.md (sha256 b17b38a95ccb)
+// Regenerate: python3 spec/specc.py build --target csharp
+
 namespace Std;
 
 using System;
@@ -10,12 +13,14 @@ using System.Text;
 public class UriTemplate
 {
     // Public API
+    // spec: fn expand
     public static string Expand(string template, IReadOnlyDictionary<string, object> substitutions)
     {
         return ExpandImpl(template, substitutions);
     }
 
     // Private implementation
+    // spec: type Operator
     private enum Operator
     {
         NO_OP,
@@ -28,95 +33,125 @@ public class UriTemplate
         AMP
     }
 
-    private static void CheckVarname(string token, int col)
+    // spec: type SubstitutionType
+    private enum SubstitutionType
     {
-#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
-        if (token.StartsWith('.') || token.EndsWith('.'))
-#else
-        if (token.StartsWith(".") || token.EndsWith("."))
-#endif
+        EMPTY,
+        STRING,
+        LIST,
+        MAP
+    }
+
+    // spec: fn expandImpl
+    private static string ExpandImpl(string template, IReadOnlyDictionary<string, object> substitutions)
+    {
+        StringBuilder result = new StringBuilder(template.Length * 2);
+        StringBuilder? token = null;
+        Operator? op = null;
+        bool composite = false;
+        StringBuilder? maxCharBuffer = null;
+        bool firstToken = true;
+
+        for (int i = 0; i < template.Length; i += char.IsHighSurrogate(template, i) ? 2 : 1)
         {
-            throw new ArgumentException($"Variable name cannot start or end with '.' at col:{col}");
-        }
-        if (token.Contains(".."))
-        {
-            throw new ArgumentException($"Variable name cannot contain '..' at col:{col}");
-        }
-        for (int i = 0; i < token.Length; i++)
-        {
-            if (token[i] == '%')
+            int c = char.ConvertToUtf32(template, i);
+            if (c == '{')
             {
-                if (i + 2 >= token.Length
-                    || !IsHexDigit(token[i + 1])
-                    || !IsHexDigit(token[i + 2]))
+                if (token != null)
                 {
-                    throw new ArgumentException($"Invalid percent encoding in variable name at col:{col}");
+                    throw new ArgumentException($"Nested expression at col:{i}");
+                }
+                token = new StringBuilder();
+                firstToken = true;
+            }
+            else if (c == '}')
+            {
+                if (token == null)
+                {
+                    throw new ArgumentException($"Unexpected '}}' at col:{i}");
+                }
+                if (maxCharBuffer != null && maxCharBuffer.Length == 0)
+                {
+                    throw new ArgumentException($"Empty prefix modifier at col:{i}");
+                }
+                bool expanded = ExpandToken(op, token.ToString(), composite, GetMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
+                if (expanded && firstToken)
+                {
+                    firstToken = false;
+                }
+                token = null;
+                op = null;
+                composite = false;
+                maxCharBuffer = null;
+            }
+            else if (c == ',' && token != null)
+            {
+                if (maxCharBuffer != null && maxCharBuffer.Length == 0)
+                {
+                    throw new ArgumentException($"Empty prefix modifier at col:{i}");
+                }
+                bool expanded = ExpandToken(op, token.ToString(), composite, GetMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
+                if (expanded && firstToken)
+                {
+                    firstToken = false;
+                }
+                token = new StringBuilder();
+                composite = false;
+                maxCharBuffer = null;
+            }
+            else if (token != null)
+            {
+                if (op == null)
+                {
+                    op = GetOperator(c, token, i);
+                }
+                else if (maxCharBuffer != null)
+                {
+                    if (c >= '0' && c <= '9')
+                    {
+                        maxCharBuffer.Append(char.ConvertFromUtf32(c));
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Illegal character in prefix modifier at col:{i}");
+                    }
+                }
+                else if (c == ':')
+                {
+                    maxCharBuffer = new StringBuilder();
+                }
+                else if (c == '*')
+                {
+                    composite = true;
+                }
+                else
+                {
+                    ValidateVarchar(c, i);
+                    token.Append(char.ConvertFromUtf32(c));
+                }
+            }
+            else
+            {
+                if (c > 0x7F)
+                {
+                    PctEncode(c, result);
+                }
+                else
+                {
+                    result.Append(char.ConvertFromUtf32(c));
                 }
             }
         }
+
+        if (token != null)
+        {
+            throw new ArgumentException("Unterminated expression");
+        }
+        return result.ToString();
     }
 
-    private static bool IsHexDigit(char c)
-    {
-        return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-    }
-
-    private static void ValidateLiteral(char c, int col)
-    {
-        switch (c)
-        {
-            case '+':
-            case '#':
-            case '/':
-            case ';':
-            case '?':
-            case '&':
-            case ' ':
-            case '!':
-            case '=':
-            case '$':
-            case '|':
-            case '*':
-            case ':':
-            case '~':
-            case '-':
-                throw new ArgumentException($"Illegal character identified in the token at col:{col}");
-            default:
-                break;
-        }
-    }
-
-    private static int GetMaxChar(StringBuilder buffer, int col)
-    {
-        if (buffer == null || buffer.Length < 1)
-        {
-            return -1;
-        }
-
-        string str = buffer.ToString();
-        int result;
-        try
-        {
-            result = int.Parse(str);
-        }
-        catch (FormatException)
-        {
-            throw new ArgumentException($"Cannot parse max chars at col:{col}");
-        }
-
-        if (str[0] == '0')
-        {
-            throw new ArgumentException($"Leading zeros are not allowed in max chars at col:{col}");
-        }
-        if (result < 1 || result > 9999)
-        {
-            throw new ArgumentException($"Max chars must be between 1 and 9999 at col:{col}");
-        }
-
-        return result;
-    }
-
-    private static Operator GetOperator(char c, StringBuilder token, int col)
+    // spec: fn getOperator
+    private static Operator GetOperator(int c, StringBuilder token, int col)
     {
         switch (c)
         {
@@ -128,154 +163,219 @@ public class UriTemplate
             case '?': return Operator.QUESTION_MARK;
             case '&': return Operator.AMP;
             default:
-                ValidateLiteral(c, col);
-                token.Append(c);
+                ValidateVarchar(c, col);
+                token.Append(char.ConvertFromUtf32(c));
                 return Operator.NO_OP;
         }
     }
 
-    private static string ExpandImpl(string str, IReadOnlyDictionary<string, object> substitutions)
+    // spec: fn validateVarchar
+    private static void ValidateVarchar(int c, int col)
     {
-        StringBuilder result = new StringBuilder(str.Length * 2);
-
-        bool toToken = false;
-        StringBuilder token = new StringBuilder();
-
-        Operator? op = null;
-        bool composite = false;
-        bool toMaxCharBuffer = false;
-        StringBuilder maxCharBuffer = new StringBuilder(3);
-        bool firstToken = true;
-
-        for (int i = 0; i < str.Length; i++)
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '%' || c == '.')
         {
-            char character = str[i];
-            switch (character)
+            return;
+        }
+        throw new ArgumentException($"Illegal character in variable name at col:{col}");
+    }
+
+    // spec: fn checkVarname
+    private static void CheckVarname(string token, int col)
+    {
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
+        if (token.StartsWith('.') || token.EndsWith('.'))
+#else
+        if (token.StartsWith(".") || token.EndsWith("."))
+#endif
+        {
+            throw new ArgumentException($"Variable name cannot start or end with a dot at col:{col}");
+        }
+        if (token.Contains(".."))
+        {
+            throw new ArgumentException($"Variable name cannot contain consecutive dots at col:{col}");
+        }
+        int i = 0;
+        while (i < token.Length)
+        {
+            if (token[i] == '%')
             {
-                case '{':
-                    toToken = true;
-                    token.Clear();
-                    firstToken = true;
-                    break;
-                case '}':
-                    if (toToken)
-                    {
-                        if (toMaxCharBuffer && maxCharBuffer.Length == 0)
-                        {
-                            throw new ArgumentException($"Empty prefix after colon at col:{i}");
-                        }
-                        bool expanded = ExpandToken(op, token.ToString(), composite, GetMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
-                        if (expanded && firstToken)
-                        {
-                            firstToken = false;
-                        }
-                        toToken = false;
-                        token.Clear();
-                        op = null;
-                        composite = false;
-                        toMaxCharBuffer = false;
-                        maxCharBuffer.Clear();
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"Failed to expand token, invalid at col:{i}");
-                    }
-                    break;
-                case ',':
-                    if (toToken)
-                    {
-                        if (toMaxCharBuffer && maxCharBuffer.Length == 0)
-                        {
-                            throw new ArgumentException($"Empty prefix after colon at col:{i}");
-                        }
-                        bool expanded = ExpandToken(op, token.ToString(), composite, GetMaxChar(maxCharBuffer, i), firstToken, substitutions, result, i);
-                        if (expanded && firstToken)
-                        {
-                            firstToken = false;
-                        }
-                        token.Clear();
-                        composite = false;
-                        toMaxCharBuffer = false;
-                        maxCharBuffer.Clear();
-                        break;
-                    }
-                    // Intentional fall-through for commas outside the {}
-                    goto default;
-                default:
-                    if (toToken)
-                    {
-                        if (op == null)
-                        {
-                            op = GetOperator(character, token, i);
-                        }
-                        else if (toMaxCharBuffer)
-                        {
-                            if (char.IsDigit(character))
-                            {
-                                maxCharBuffer.Append(character);
-                            }
-                            else
-                            {
-                                throw new ArgumentException($"Illegal character identified in the token at col:{i}");
-                            }
-                        }
-                        else
-                        {
-                            if (character == ':')
-                            {
-                                toMaxCharBuffer = true;
-                                maxCharBuffer.Clear();
-                            }
-                            else if (character == '*')
-                            {
-                                composite = true;
-                            }
-                            else
-                            {
-                                ValidateLiteral(character, i);
-                                token.Append(character);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (character > 0x7F || char.IsHighSurrogate(character))
-                        {
-                            string toEncode;
-                            if (char.IsHighSurrogate(character) && i + 1 < str.Length && char.IsLowSurrogate(str[i + 1]))
-                            {
-                                toEncode = str.Substring(i, 2);
-                                i++;
-                            }
-                            else
-                            {
-                                toEncode = character.ToString();
-                            }
-                            byte[] bytes = Encoding.UTF8.GetBytes(toEncode);
-                            foreach (byte b in bytes)
-                            {
-                                result.Append($"%{b:X2}");
-                            }
-                        }
-                        else
-                        {
-                            result.Append(character);
-                        }
-                    }
-                    break;
+                if (i + 2 >= token.Length
+                    || !IsHexDigit(token[i + 1])
+                    || !IsHexDigit(token[i + 2]))
+                {
+                    throw new ArgumentException($"Invalid percent-encoding in variable name at col:{col}");
+                }
+                i += 3;
             }
-        }
-
-        if (!toToken)
-        {
-            return result.ToString();
-        }
-        else
-        {
-            throw new ArgumentException("Unterminated token");
+            else
+            {
+                i += 1;
+            }
         }
     }
 
+    // spec: fn isHexDigit
+    private static bool IsHexDigit(int c)
+    {
+        return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+    }
+
+    // spec: fn getMaxChar
+    private static int GetMaxChar(StringBuilder? buffer, int col)
+    {
+        if (buffer == null || buffer.Length == 0)
+        {
+            return -1;
+        }
+
+        string value = buffer.ToString();
+        if (value[0] == '0')
+        {
+            throw new ArgumentException($"Leading zero not allowed in prefix modifier at col:{col}");
+        }
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int n) || n < 1 || n > 9999)
+        {
+            throw new ArgumentException($"Prefix modifier out of range (1-9999) at col:{col}");
+        }
+
+        return n;
+    }
+
+    // returns true if expansion happened
+    // spec: fn expandToken
+    private static bool ExpandToken(
+            Operator? op,
+            string token,
+            bool composite,
+            int maxChar,
+            bool firstToken,
+            IReadOnlyDictionary<string, object> substitutions,
+            StringBuilder result,
+            int col)
+    {
+        if (string.IsNullOrEmpty(token))
+        {
+            throw new ArgumentException($"Empty variable name at col:{col}");
+        }
+
+        CheckVarname(token, col);
+
+        object? value;
+        substitutions.TryGetValue(token, out value);
+        SubstitutionType substType = GetSubstitutionType(value, col);
+        if (substType == SubstitutionType.EMPTY || IsEmpty(substType, value))
+        {
+            return false;
+        }
+
+        if (firstToken)
+        {
+            AddPrefix(op, result);
+        }
+        else
+        {
+            AddSeparator(op, result);
+        }
+
+        switch (substType)
+        {
+            case SubstitutionType.STRING:
+                AddStringValue(op, token, value!, result, maxChar);
+                break;
+            case SubstitutionType.LIST:
+                AddListValue(op, token, (IList)value!, result, maxChar, composite);
+                break;
+            case SubstitutionType.MAP:
+                AddMapValue(op, token, (IDictionary)value!, result, maxChar, composite);
+                break;
+        }
+
+        return true;
+    }
+
+    // spec: fn getSubstitutionType
+    private static SubstitutionType GetSubstitutionType(object? value, int col)
+    {
+        if (value == null)
+        {
+            return SubstitutionType.EMPTY;
+        }
+        if (IsNativeType(value))
+        {
+            return SubstitutionType.STRING;
+        }
+        else if (IsList(value))
+        {
+            return SubstitutionType.LIST;
+        }
+        else if (IsMap(value))
+        {
+            return SubstitutionType.MAP;
+        }
+        else
+        {
+            throw new ArgumentException($"Illegal value type for substitution at col:{col}");
+        }
+    }
+
+    // spec: fn isEmpty
+    private static bool IsEmpty(SubstitutionType substType, object? value)
+    {
+        if (value == null)
+        {
+            return true;
+        }
+        else
+        {
+            switch (substType)
+            {
+                case SubstitutionType.STRING:
+                    return false;
+                case SubstitutionType.LIST:
+                    return ((IList)value).Count == 0;
+                case SubstitutionType.MAP:
+                    return ((IDictionary)value).Count == 0;
+                default:
+                    return true;
+            }
+        }
+    }
+
+    // spec: fn isNativeType
+    private static bool IsNativeType(object value)
+    {
+        return value is string or bool or int or long or float or double or decimal;
+    }
+
+    // spec: fn isList
+    private static bool IsList(object value)
+    {
+        return value is IList;
+    }
+
+    // spec: fn isMap
+    private static bool IsMap(object value)
+    {
+        return value is IDictionary;
+    }
+
+    // spec: fn convertNativeTypes
+    private static string ConvertNativeTypes(object? value)
+    {
+        return value switch
+        {
+            string str => str,
+            bool b => b ? "true" : "false",
+            int number => number.ToString(CultureInfo.InvariantCulture),
+            long number => number.ToString(CultureInfo.InvariantCulture),
+            float number => number.ToString(CultureInfo.InvariantCulture),
+            double number => number.ToString(CultureInfo.InvariantCulture),
+            decimal number => number.ToString(CultureInfo.InvariantCulture),
+            _ => throw new ArgumentException("Illegal value type for substitution"),
+        };
+    }
+
+    // spec: fn addPrefix
     private static void AddPrefix(Operator? op, StringBuilder result)
     {
         switch (op)
@@ -303,6 +403,7 @@ public class UriTemplate
         }
     }
 
+    // spec: fn addSeparator
     private static void AddSeparator(Operator? op, StringBuilder result)
     {
         switch (op)
@@ -326,307 +427,17 @@ public class UriTemplate
         }
     }
 
-    private static void AddValue(Operator? op, string token, object value, StringBuilder result, int maxChar)
-    {
-        switch (op)
-        {
-            case Operator.PLUS:
-            case Operator.HASH:
-                AddExpandedValue(null, value, result, maxChar, false);
-                break;
-            case Operator.QUESTION_MARK:
-            case Operator.AMP:
-                result.Append(token + '=');
-                AddExpandedValue(null, value, result, maxChar, true);
-                break;
-            case Operator.SEMICOLON:
-                result.Append(token);
-                AddExpandedValue("=", value, result, maxChar, true);
-                break;
-            case Operator.DOT:
-            case Operator.SLASH:
-            case Operator.NO_OP:
-                AddExpandedValue(null, value, result, maxChar, true);
-                break;
-        }
-    }
-
-    private static void AddValueElement(Operator? op, string token, object value, StringBuilder result, int maxChar)
-    {
-        switch (op)
-        {
-            case Operator.PLUS:
-            case Operator.HASH:
-                AddExpandedValue(null, value, result, maxChar, false);
-                break;
-            case Operator.QUESTION_MARK:
-            case Operator.AMP:
-            case Operator.SEMICOLON:
-            case Operator.DOT:
-            case Operator.SLASH:
-            case Operator.NO_OP:
-                AddExpandedValue(null, value, result, maxChar, true);
-                break;
-        }
-    }
-
-    private static bool isSurrogate(char cp) {
-        return (cp >= 0xD800 && cp <= 0xDFFF);
-    }
-
-    private static bool isIprivate(char cp) {
-        return (0xE000 <= cp && cp <= 0xF8FF);
-    }
-
-    private static bool isUcschar(char cp) {
-        return (0xA0 <= cp && cp <= 0xD7FF)
-                || (0xF900 <= cp && cp <= 0xFDCF)
-                || (0xFDF0 <= cp && cp <= 0xFFEF);
-    }
-
-    private static void AddExpandedValue(string prefix, object value, StringBuilder result, int maxChar, bool replaceReserved)
-    {
-        string stringValue = convertNativeTypes(value);
-        int codePointCount = 0;
-        for (int ci = 0; ci < stringValue.Length; ci++)
-        {
-            if (char.IsHighSurrogate(stringValue[ci]) && ci + 1 < stringValue.Length && char.IsLowSurrogate(stringValue[ci + 1]))
-            {
-                ci++;
-            }
-            codePointCount++;
-        }
-        int max = (maxChar != -1) ? Math.Min(maxChar, codePointCount) : codePointCount;
-        result.EnsureCapacity(max * 2); // hint to SB
-        bool toReserved = false;
-        StringBuilder reservedBuffer = new StringBuilder(3);
-
-        if (max > 0 && prefix != null)
-        {
-            result.Append(prefix);
-        }
-
-        int charCount = 0;
-        for (int i = 0; i < stringValue.Length && charCount < max; i++)
-        {
-            char character = stringValue[i];
-
-            if (character == '%' && !replaceReserved)
-            {
-                toReserved = true;
-                reservedBuffer.Clear();
-            }
-
-            var toAppend = character.ToString();
-            if (isSurrogate(character)) {
-                toAppend = Uri.EscapeDataString(char.ConvertFromUtf32(char.ConvertToUtf32(stringValue, i)));
-                i++; // skip the low surrogate
-            } else if (replaceReserved || isUcschar(character) || isIprivate(character)) {
-                toAppend = Uri.EscapeDataString(toAppend);
-            }
-
-            if (toReserved)
-            {
-                reservedBuffer.Append(toAppend);
-
-                if (reservedBuffer.Length == 3)
-                {
-                    bool isEncoded = false;
-                    try
-                    {
-                        var original = reservedBuffer.ToString();
-                        isEncoded = !original.Equals(Uri.UnescapeDataString(original));
-                    }
-                    catch (Exception)
-                    {
-                        // ignore
-                    }
-
-                    if (isEncoded)
-                    {
-                        result.Append(reservedBuffer);
-                    }
-                    else
-                    {
-                        result.Append("%25");
-                        // only if !replaceReserved
-                        result.Append(reservedBuffer.ToString(1, 2));
-                    }
-                    toReserved = false;
-                    reservedBuffer.Clear();
-                }
-            }
-            else
-            {
-                if (character == ' ')
-                {
-                    result.Append("%20");
-                }
-                else if (character == '%')
-                {
-                    result.Append("%25");
-                }
-                else
-                {
-                    result.Append(toAppend);
-                }
-            }
-
-            charCount++;
-        }
-
-        if (toReserved)
-        {
-            result.Append("%25");
-            result.Append(reservedBuffer.ToString(1, reservedBuffer.Length - 1));
-        }
-    }
-
-    private static bool IsList(object value)
-    {
-        return value is IList;
-    }
-
-    private static bool IsDictionary(object value)
-    {
-        return value is IDictionary;
-    }
-
-    private enum SubstitutionType
-    {
-        EMPTY,
-        STRING,
-        LIST,
-        DICTIONARY
-    }
-
-    private static SubstitutionType GetSubstitutionType(object value, int col)
-    {
-        if (value == null)
-        {
-            return SubstitutionType.EMPTY;
-        }
-        if (isNativeType(value))
-        {
-            return SubstitutionType.STRING;
-        }
-        else if (IsList(value))
-        {
-            return SubstitutionType.LIST;
-        }
-        else if (IsDictionary(value))
-        {
-            return SubstitutionType.DICTIONARY;
-        }
-        else
-        {
-            throw new ArgumentException($"Illegal class passed as substitution, found {value.GetType()} at col:{col}");
-        }
-    }
-
-    private static bool IsEmpty(SubstitutionType substType, object value)
-    {
-        if (value == null)
-        {
-            return true;
-        }
-        else
-        {
-            switch (substType)
-            {
-                case SubstitutionType.STRING:
-                    return value == null;
-                case SubstitutionType.LIST:
-                    return ((IList)value).Count == 0;
-                case SubstitutionType.DICTIONARY:
-                    return ((IDictionary)value).Count == 0;
-                default:
-                    return true;
-            }
-        }
-    }
-
-    private static bool isNativeType(object value)
-    {
-        return value is string or bool or int or long or float or double or decimal;
-    }
-
-    private static string convertNativeTypes(object value)
-    {
-        return value switch
-        {
-            string str => str,
-            bool => value.ToString().ToLower(),
-            int number => number.ToString(CultureInfo.InvariantCulture),
-            long number => number.ToString(CultureInfo.InvariantCulture),
-            float number => number.ToString(CultureInfo.InvariantCulture),
-            double number => number.ToString(CultureInfo.InvariantCulture),
-            decimal number => number.ToString(CultureInfo.InvariantCulture),
-            _ => throw new ArgumentException($"Illegal class passed as substitution, found {value.GetType()}"),
-        };
-    }
-
-    // returns true if expansion happened
-    private static bool ExpandToken(
-            Operator? op,
-            string token,
-            bool composite,
-            int maxChar,
-            bool firstToken,
-            IReadOnlyDictionary<string, object> substitutions,
-            StringBuilder result,
-            int col)
-    {
-        if (string.IsNullOrEmpty(token))
-        {
-            throw new ArgumentException($"Found an empty token at col:{col}");
-        }
-
-        CheckVarname(token, col);
-
-        object value;
-        substitutions.TryGetValue(token, out value);
-        SubstitutionType substType = GetSubstitutionType(value, col);
-        if (substType == SubstitutionType.EMPTY || IsEmpty(substType, value))
-        {
-            return false;
-        }
-
-        if (firstToken)
-        {
-            AddPrefix(op, result);
-        }
-        else
-        {
-            AddSeparator(op, result);
-        }
-
-        switch (substType)
-        {
-            case SubstitutionType.STRING:
-                AddStringValue(op, token, value, result, maxChar);
-                break;
-            case SubstitutionType.LIST:
-                AddListValue(op, token, (IList)value, result, maxChar, composite);
-                break;
-            case SubstitutionType.DICTIONARY:
-                AddDictionaryValue(op, token, ((IDictionary)value), result, maxChar, composite);
-                break;
-        }
-
-        return true;
-    }
-
-    private static bool AddStringValue(Operator? op, string token, object value, StringBuilder result, int maxChar)
+    // spec: fn addStringValue
+    private static void AddStringValue(Operator? op, string token, object value, StringBuilder result, int maxChar)
     {
         AddValue(op, token, value, result, maxChar);
-        return true;
     }
 
-    private static bool AddListValue(Operator? op, string token, IList value, StringBuilder result, int maxChar, bool composite)
+    // spec: fn addListValue
+    private static void AddListValue(Operator? op, string token, IList value, StringBuilder result, int maxChar, bool composite)
     {
         bool first = true;
-        foreach (object v in value)
+        foreach (object? v in value)
         {
             if (first)
             {
@@ -647,18 +458,21 @@ public class UriTemplate
                 }
             }
         }
-        return !first;
     }
 
-    private static bool AddDictionaryValue(Operator? op, string token, IDictionary value, StringBuilder result, int maxChar, bool composite)
+    // spec: fn addMapValue
+    private static void AddMapValue(Operator? op, string token, IDictionary value, StringBuilder result, int maxChar, bool composite)
     {
-        bool first = true;
         if (maxChar != -1)
         {
-            throw new ArgumentException("Value trimming is not allowed on Dictionaries");
+            throw new ArgumentException("Prefix modifier is not allowed on map values");
         }
-        foreach (DictionaryEntry v in value)
+        bool first = true;
+        // avoids foreach unboxing a nullable Current (CS8605)
+        IDictionaryEnumerator entries = value.GetEnumerator();
+        while (entries.MoveNext())
         {
+            DictionaryEntry v = entries.Entry;
             if (composite)
             {
                 if (!first)
@@ -684,6 +498,117 @@ public class UriTemplate
             AddValueElement(op, token, v.Value, result, maxChar);
             first = false;
         }
-        return !first;
+    }
+
+    // spec: fn addValue
+    private static void AddValue(Operator? op, string token, object? value, StringBuilder result, int maxChar)
+    {
+        switch (op)
+        {
+            case Operator.PLUS:
+            case Operator.HASH:
+                AddExpandedValue(null, value, result, maxChar, false);
+                break;
+            case Operator.QUESTION_MARK:
+            case Operator.AMP:
+                result.Append(token + '=');
+                AddExpandedValue(null, value, result, maxChar, true);
+                break;
+            case Operator.SEMICOLON:
+                result.Append(token);
+                AddExpandedValue("=", value, result, maxChar, true);
+                break;
+            case Operator.DOT:
+            case Operator.SLASH:
+            case Operator.NO_OP:
+                AddExpandedValue(null, value, result, maxChar, true);
+                break;
+        }
+    }
+
+    // spec: fn addValueElement
+    private static void AddValueElement(Operator? op, string token, object? value, StringBuilder result, int maxChar)
+    {
+        switch (op)
+        {
+            case Operator.PLUS:
+            case Operator.HASH:
+                AddExpandedValue(null, value, result, maxChar, false);
+                break;
+            case Operator.QUESTION_MARK:
+            case Operator.AMP:
+            case Operator.SEMICOLON:
+            case Operator.DOT:
+            case Operator.SLASH:
+            case Operator.NO_OP:
+                AddExpandedValue(null, value, result, maxChar, true);
+                break;
+        }
+    }
+
+    // spec: fn addExpandedValue
+    private static void AddExpandedValue(string? prefix, object? value, StringBuilder result, int maxChar, bool replaceReserved)
+    {
+        string stringValue = ConvertNativeTypes(value);
+        List<int> s = new List<int>(stringValue.Length);
+        for (int ci = 0; ci < stringValue.Length; ci += char.IsHighSurrogate(stringValue, ci) ? 2 : 1)
+        {
+            s.Add(char.ConvertToUtf32(stringValue, ci));
+        }
+        int max = (maxChar != -1) ? Math.Min(maxChar, s.Count) : s.Count;
+
+        if (max > 0 && prefix != null)
+        {
+            result.Append(prefix);
+        }
+
+        int i = 0;
+        while (i < max)
+        {
+            int c = s[i];
+            if (IsUnreserved(c))
+            {
+                result.Append(char.ConvertFromUtf32(c));
+            }
+            else if (!replaceReserved && IsReserved(c))
+            {
+                result.Append(char.ConvertFromUtf32(c));
+            }
+            else if (!replaceReserved && c == '%' && i + 2 < max && IsHexDigit(s[i + 1]) && IsHexDigit(s[i + 2]))
+            {
+                result.Append(char.ConvertFromUtf32(c));
+                result.Append(char.ConvertFromUtf32(s[i + 1]));
+                result.Append(char.ConvertFromUtf32(s[i + 2]));
+                i += 2;
+            }
+            else
+            {
+                PctEncode(c, result);
+            }
+            i++;
+        }
+    }
+
+    // spec: fn isUnreserved
+    private static bool IsUnreserved(int c)
+    {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+            || c == '-' || c == '.' || c == '_' || c == '~';
+    }
+
+    // spec: fn isReserved
+    private static bool IsReserved(int c)
+    {
+        return c <= 0x7F && ":/?#[]@!$&'()*+,;=".IndexOf((char)c) >= 0;
+    }
+
+    // spec: fn pctEncode
+    private static void PctEncode(int c, StringBuilder result)
+    {
+        foreach (byte b in Encoding.UTF8.GetBytes(char.ConvertFromUtf32(c)))
+        {
+            result.Append('%');
+            result.Append(b.ToString("X2"));
+        }
     }
 }

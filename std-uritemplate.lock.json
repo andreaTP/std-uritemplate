@@ -1,6 +1,102 @@
 {
-  "spec_sha256": "0bfb09e61e5da862129ee428366c76c6cda61e750af80416200e78f9517e2904",
+  "spec_sha256": "b17b38a95ccb952468a4e2ab0af4c0a20895cd7c7680581582547ba330206c3b",
   "targets": {
+    "csharp": {
+      "attempts": 1,
+      "backend": {
+        "model": "claude-opus-5-5",
+        "name": "claude-cli",
+        "version": "2.1.319 (Claude Code)"
+      },
+      "chunk_hashes": {
+        "fn addExpandedValue": "f5558b55fd68a504da07a6790b49f2c26f7b36c6e044cc42c0474b719623626b",
+        "fn addListValue": "a613f8d232fcb5826cb18c4b03ef4a1883d092d6d378dae4f3ae98f40685105c",
+        "fn addMapValue": "4220cf1a4e3f5a8ea072ffb6bbefc35af98398124d44e3519e58e67020392b06",
+        "fn addPrefix": "5b620cfb2034f4ba61308ca55ddc5a79de311974af35cd35a8eba55ef6bbe7d5",
+        "fn addSeparator": "4675127fe15a54f0ac5ec4b8105a5f12cc3791bc9c9afcacc374ed61945fd2f7",
+        "fn addStringValue": "2ca90f7bb9627389441aa6fdaf6de3159e64424384c5b58e5a03aec4ef8d35a9",
+        "fn addValue": "54b4816c3cc203480a62e1554a7310f5301046357282859c09c9a0fcda76b7c4",
+        "fn addValueElement": "de67b6e454d6517ffd8c79fb6727c0e56cfffec43f0eb1a0846a5232d5e15d87",
+        "fn checkVarname": "329679bcec9337db1ab7e93f1d003a45a39bdcc3a333786200b30d8c7caed6e9",
+        "fn convertNativeTypes": "854a77299633b6cedc4b4d3e4d65389832cd27ac05cb781b90afe4babf55f600",
+        "fn expand": "0092d89879c978b0489c281eeafd877092afa4eda50a5ce794f7809561ea97a1",
+        "fn expandImpl": "aa4624dfd6a15a375a4a94c30bcfcada6025905115d0693b81a99310eb197b32",
+        "fn expandToken": "6298709ae2506774e7aef8b4de1eeede1e09e16cec0777427b3a6b279c7522ac",
+        "fn getMaxChar": "a11fd2b4a25381139706f28a2e448beedf5cb6b5d6311fb8589d805c6c5cb1cf",
+        "fn getOperator": "1dfb363bff95e5be8b262689508e8d5775f64c67e49a0b51a1489d0b2f9e70da",
+        "fn getSubstitutionType": "a4be33dcae9d42cb6d484d41001a45895684ca8da49ac659d149aa895532f616",
+        "fn isEmpty": "2220efd1e493a354d62c9d5b6b005e5411f1c5e6e142dea99e308d7e3c904497",
+        "fn isHexDigit": "988c4aea7fbbad74e82077104dec40035c5774c79bb4768dbd70857ad10fd5c7",
+        "fn isList": "e09ba5bd14d89b4231cdd0f58df4bae3e74dde29b283e0051ae1b94d478bb6ea",
+        "fn isMap": "7bc788cf12ea800e82d35e3c58b8ee00f19c6d5256f4ec891f4bb164c62e04de",
+        "fn isNativeType": "011d86c029737d274e5e58c6b65738c61c1c44843524ec792bffbf30357ebb6f",
+        "fn isReserved": "8858287db8252efe775bb113c24d18ccf4b42be3e146fb69bd43c7d5ea5abe2c",
+        "fn isUnreserved": "c00d419a6d526cea010ab778161efbf8f1d01d27a10990846c3206479fa8e498",
+        "fn pctEncode": "fddfd4c1f0f470c09008279478b5093bbb461fa7d557da47ac64db3494c0df75",
+        "fn validateVarchar": "0bc2ec240fcb77735e70435ae3e43fb72abb1b2bb35d174eb32e784fc2a7c8dc",
+        "section A": "707a57c134b2a029ce4c16ae8c17589f7c364e039ad95c516a5484e0acfdf818",
+        "type Operator": "86d909497734b7e1317eba02d3bc2d58b144675a29c733ca3882efe98da3f8d5",
+        "type SubstitutionType": "96fb5bb652f2aca56b2a8d66b4b983ac3762ae61dac23156b826e41046d2792b"
+      },
+      "cost_usd": 1.1112,
+      "file": "csharp/Std.UriTemplate.cs",
+      "generated_at": "2026-11-06T15:25:37Z",
+      "output_sha256": "61bd146505871932fb13cfb260f7cbcf14b46b89c9362e9da88b502fd1946e4d",
+      "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
+      "target_notes_sha256": "b69899a19056dd8cf2eb7153daf30413d73e92a9c4e0e593073bc4abf4438c1f",
+      "tck": {
+        "cases": 446,
+        "result": "pass"
+      }
+    },
+    "java": {
+      "attempts": 1,
+      "backend": {
+        "model": "claude-opus-5-5",
+        "name": "claude-cli",
+        "version": "2.1.319 (Claude Code)"
+      },
+      "chunk_hashes": {
+        "fn addExpandedValue": "f5558b55fd68a504da07a6790b49f2c26f7b36c6e044cc42c0474b719623626b",
+        "fn addListValue": "a613f8d232fcb5826cb18c4b03ef4a1883d092d6d378dae4f3ae98f40685105c",
+        "fn addMapValue": "4220cf1a4e3f5a8ea072ffb6bbefc35af98398124d44e3519e58e67020392b06",
+        "fn addPrefix": "5b620cfb2034f4ba61308ca55ddc5a79de311974af35cd35a8eba55ef6bbe7d5",
+        "fn addSeparator": "4675127fe15a54f0ac5ec4b8105a5f12cc3791bc9c9afcacc374ed61945fd2f7",
+        "fn addStringValue": "2ca90f7bb9627389441aa6fdaf6de3159e64424384c5b58e5a03aec4ef8d35a9",
+        "fn addValue": "54b4816c3cc203480a62e1554a7310f5301046357282859c09c9a0fcda76b7c4",
+        "fn addValueElement": "de67b6e454d6517ffd8c79fb6727c0e56cfffec43f0eb1a0846a5232d5e15d87",
+        "fn checkVarname": "329679bcec9337db1ab7e93f1d003a45a39bdcc3a333786200b30d8c7caed6e9",
+        "fn convertNativeTypes": "854a77299633b6cedc4b4d3e4d65389832cd27ac05cb781b90afe4babf55f600",
+        "fn expand": "0092d89879c978b0489c281eeafd877092afa4eda50a5ce794f7809561ea97a1",
+        "fn expandImpl": "aa4624dfd6a15a375a4a94c30bcfcada6025905115d0693b81a99310eb197b32",
+        "fn expandToken": "6298709ae2506774e7aef8b4de1eeede1e09e16cec0777427b3a6b279c7522ac",
+        "fn getMaxChar": "a11fd2b4a25381139706f28a2e448beedf5cb6b5d6311fb8589d805c6c5cb1cf",
+        "fn getOperator": "1dfb363bff95e5be8b262689508e8d5775f64c67e49a0b51a1489d0b2f9e70da",
+        "fn getSubstitutionType": "a4be33dcae9d42cb6d484d41001a45895684ca8da49ac659d149aa895532f616",
+        "fn isEmpty": "2220efd1e493a354d62c9d5b6b005e5411f1c5e6e142dea99e308d7e3c904497",
+        "fn isHexDigit": "988c4aea7fbbad74e82077104dec40035c5774c79bb4768dbd70857ad10fd5c7",
+        "fn isList": "e09ba5bd14d89b4231cdd0f58df4bae3e74dde29b283e0051ae1b94d478bb6ea",
+        "fn isMap": "7bc788cf12ea800e82d35e3c58b8ee00f19c6d5256f4ec891f4bb164c62e04de",
+        "fn isNativeType": "011d86c029737d274e5e58c6b65738c61c1c44843524ec792bffbf30357ebb6f",
+        "fn isReserved": "8858287db8252efe775bb113c24d18ccf4b42be3e146fb69bd43c7d5ea5abe2c",
+        "fn isUnreserved": "c00d419a6d526cea010ab778161efbf8f1d01d27a10990846c3206479fa8e498",
+        "fn pctEncode": "fddfd4c1f0f470c09008279478b5093bbb461fa7d557da47ac64db3494c0df75",
+        "fn validateVarchar": "0bc2ec240fcb77735e70435ae3e43fb72abb1b2bb35d174eb32e784fc2a7c8dc",
+        "section A": "707a57c134b2a029ce4c16ae8c17589f7c364e039ad95c516a5484e0acfdf818",
+        "type Operator": "86d909497734b7e1317eba02d3bc2d58b144675a29c733ca3882efe98da3f8d5",
+        "type SubstitutionType": "96fb5bb652f2aca56b2a8d66b4b983ac3762ae61dac23156b826e41046d2792b"
+      },
+      "cost_usd": 0.4408,
+      "file": "java/src/main/java/io/github/stduritemplate/StdUriTemplate.java",
+      "generated_at": "2026-11-06T15:21:29Z",
+      "output_sha256": "e4df1f48618d75063fa7e16346ce31ad0a0407bc179cda154bb274b8c8230b99",
+      "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
+      "target_notes_sha256": "84f0a838e4e5a8608e5be4e7fe3dbf22bfa0ef2a1fd03f61eeda2bb7e149a63a",
+      "tck": {
+        "cases": 446,
+        "result": "pass"
+      }
+    },
     "python": {
       "attempts": 1,
       "backend": {
@@ -41,7 +137,7 @@
       "cost_usd": 0.2688,
       "file": "python/stduritemplate/__init__.py",
       "generated_at": "2026-10-30T13:32:12Z",
-      "output_sha256": "7781414b3fe0bac93d8d7afd30963dc27db291bf7d85da083d789787cae04ca2",
+      "output_sha256": "20936ada992f813b211bf85e45ffb3db3e4a2fd9cc459552ed65e36bcf25a0c2",
       "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
       "target_notes_sha256": "f796b93babb5df4bbea6e8c5c85e8c667df9c6bc80a7c25b41f49f37e45c30ac",
       "tck": {
