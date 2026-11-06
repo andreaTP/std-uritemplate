@@ -1,5 +1,5 @@
 # GENERATED FILE - DO NOT EDIT.
-# Source: std-uritemplate.spec.md (sha256 4b71fe5e38d4)
+# Source: std-uritemplate.spec.md (sha256 cb87a7635b52)
 # Regenerate: python3 spec/specc.py build --target python
 from typing import Any, Dict, List, Optional
 from enum import Enum

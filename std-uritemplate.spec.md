@@ -531,6 +531,10 @@ Decisions this spec makes explicitly, with the fixture that pins each:
 - Variable names: varchar with single dots, valid percent triplets
   (`negative-tests.json`: `{x.}`, `{x..y}`, `{%2x}`, `{default-graph-uri}`;
   `extended-tests.json`: `{?Stra%C3%9Fe}`).
+- Variable names are an allow-list (RFC 6570 section 2.3), not a deny-list of
+  known-bad characters: `@`, `(`, `[`, `'`, `\`, non-ASCII letters and a nested `{`
+  are all errors (`edge-cases.json`, "Variable names outside the RFC 6570 varchar
+  set"). The hand-written ports accept these and must be fixed.
 - Prefix length counts code points (`extended-tests.json`: `{clef:1}` with a
   non-BMP character).
 - Non-ASCII literal text outside expressions is percent-encoded
@@ -552,6 +556,4 @@ listed are candidates for `edge-cases.json`:
 - Reserved expansion of non-ASCII characters outside the RFC 3987 `ucschar` and
   `iprivate` ranges: the spec percent-encodes every code point above `0x7F`; Java
   copies those. Candidate: `{+var}` with `var = "\u0085"` → `%C2%85`.
-- `{` inside an expression is an error in the spec; Java restarts the expression.
-  Candidate: `{a{b}` → `false`.
 - Unsupported value types: always an error (Go currently skips the variable).
