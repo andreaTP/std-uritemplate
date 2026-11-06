@@ -93,42 +93,44 @@ jbang, .NET SDK 8+), and a backend. Clone with `--recurse-submodules` for the fi
 python3 spec/specc.py parse                     # what the spec declares
 python3 spec/specc.py check                     # no model: is everything consistent
 python3 spec/specc.py tck --target java         # conformance suite, parallel
+export SPECC_BACKEND=spec/backends/claude-cli.sh SPECC_MODEL=claude-opus-5-5
 python3 spec/specc.py build --target java       # regenerate if the spec changed
 python3 spec/specc.py build --target java --force --model claude-sonnet-5-5
 ```
 
-### With another model or harness
+### Backends
 
-The default backend is the Claude Code CLI (`claude -p`, tools disabled, pinned model).
-Any other program works through `--backend command`. The contract:
+The tool has no built-in model. `build` runs whatever `--backend` (or `$SPECC_BACKEND`)
+names, under a three-line contract:
 
 - the user prompt arrives on stdin;
 - the system prompt is in `$SPECC_SYSTEM_PROMPT`, the `--model` value in `$SPECC_MODEL`;
 - the answer goes to stdout, ideally as one fenced code block (raw code is accepted too).
 
+`spec/backends/` has three scripts:
+
 ```
-# Claude Messages API through curl (needs ANTHROPIC_API_KEY)
+# Claude Code CLI, non-interactive, tools disabled (what produced the results above)
 python3 spec/specc.py build --target python --force \
-  --backend command --backend-command spec/backends/anthropic-api.sh --model claude-opus-5-5
+  --backend spec/backends/claude-cli.sh --model claude-opus-5-5
 
-# any OpenAI-compatible endpoint, hosted or local (needs OPENAI_API_KEY, OPENAI_BASE_URL)
+# any OpenAI-compatible chat completions endpoint: OpenAI, GitHub Models, Ollama, vLLM ...
+# (needs OPENAI_API_KEY; OPENAI_BASE_URL for anything but api.openai.com)
 python3 spec/specc.py build --target python --force \
-  --backend command --backend-command spec/backends/openai-compatible.sh --model <model>
-
-# a coding agent CLI: wrap it in a script that honours the contract above
-python3 spec/specc.py build --target python --force \
-  --backend command --backend-command ./my-agent.sh
+  --backend spec/backends/openai-compatible.sh --model <model>
 
 # no model at all: replay the committed file, to exercise the pipeline
 python3 spec/specc.py build --target python --force \
-  --backend command --backend-command 'spec/backends/replay.sh python/stduritemplate/__init__.py'
+  --backend 'spec/backends/replay.sh python/stduritemplate/__init__.py'
 ```
 
-The lock records the backend and model, so a run with another model is a comparable
-artifact: attempts, cost, and the diff of the generated file against the committed one.
-The two API scripts were not exercised in this repository; treat them as templates.
+A coding agent CLI works the same way: wrap it in a script that honours the contract.
+The lock records the backend command and model, so a run with another model is a
+comparable artifact: attempts, duration, and the diff of the generated file against the
+committed one. The OpenAI-compatible script was not exercised in this repository; treat
+it as a template.
 
-What to report from a run: the model, attempts and cost from the lock; whether the
+What to report from a run: the model, attempts and duration from the lock; whether the
 anchor was respected (`git diff --stat` of the target file after a `--force` run with no
 spec change should be tiny); and any conformance case the model could not fix within
 `--max-attempts`, which usually means the spec is ambiguous there.

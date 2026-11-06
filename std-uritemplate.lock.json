@@ -4,9 +4,8 @@
     "csharp": {
       "attempts": 1,
       "backend": {
-        "model": "claude-opus-5-5",
-        "name": "claude-cli",
-        "version": "2.1.319 (Claude Code)"
+        "command": "spec/backends/claude-cli.sh",
+        "model": "claude-opus-5-5"
       },
       "chunk_hashes": {
         "fn addExpandedValue": "f5558b55fd68a504da07a6790b49f2c26f7b36c6e044cc42c0474b719623626b",
@@ -52,9 +51,8 @@
     "java": {
       "attempts": 1,
       "backend": {
-        "model": "claude-opus-5-5",
-        "name": "claude-cli",
-        "version": "2.1.319 (Claude Code)"
+        "command": "spec/backends/claude-cli.sh",
+        "model": "claude-opus-5-5"
       },
       "chunk_hashes": {
         "fn addExpandedValue": "f5558b55fd68a504da07a6790b49f2c26f7b36c6e044cc42c0474b719623626b",
@@ -100,9 +98,8 @@
     "python": {
       "attempts": 1,
       "backend": {
-        "model": "claude-opus-5-5",
-        "name": "claude-cli",
-        "version": "2.1.282 (Claude Code)"
+        "command": "spec/backends/claude-cli.sh",
+        "model": "claude-opus-5-5"
       },
       "chunk_hashes": {
         "fn addExpandedValue": "f5558b55fd68a504da07a6790b49f2c26f7b36c6e044cc42c0474b719623626b",
