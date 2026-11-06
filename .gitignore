@@ -16,3 +16,6 @@ tests/differential/.venv
 # spec compiler scratch
 spec/.scratch/
 spec/__pycache__/
+csharp/test/test/
+csharp/**/bin/
+csharp/**/obj/
