@@ -1,4 +1,5 @@
 import concurrent.futures
+import glob
 import json
 import os
 import subprocess
@@ -6,17 +7,17 @@ import tempfile
 
 from .project import SpecError
 
-FIXTURE_DIRS = ["uritemplate-test", "uritemplate-test-additional"]
 
-
-def load_cases(project):
+def load_cases(project, spec):
+    """Cases from the fixture files listed in the spec's conformance block (globs allowed)."""
     cases = []
-    for d in FIXTURE_DIRS:
-        full = project.path(d)
-        for fname in sorted(os.listdir(full)):
-            if not fname.endswith(".json"):
-                continue
-            with open(os.path.join(full, fname), encoding="utf-8") as f:
+    for pattern in spec.conformance["fixtures"]:
+        paths = sorted(glob.glob(project.path(pattern)))
+        if not paths:
+            raise SpecError("fixture not found: %s (missing submodule? run: git submodule update --init)" % pattern)
+        for path in paths:
+            fname = os.path.relpath(path, project.root)
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             for group, body in data.items():
                 variables = body["variables"]
@@ -29,7 +30,7 @@ def load_cases(project):
                         acceptable = [expected]
                     cases.append({"file": fname, "group": group, "template": template, "variables": variables, "expected": acceptable})
     if not cases:
-        raise SpecError("no fixtures found; run: git submodule update --init")
+        raise SpecError("the fixture files contain no test cases")
     return cases
 
 
@@ -50,9 +51,8 @@ def run_case(harness_dir, case, scratch):
         os.unlink(spath)
 
 
-def run_tck(project, harness, cases=None, jobs=8):
+def run_tck(project, harness, cases, jobs=8):
     harness_dir = project.path(harness)
-    cases = cases or load_cases(project)
     init = subprocess.run(["bash", os.path.join(harness_dir, "init.sh")], capture_output=True, text=True)
     if init.returncode != 0:
         log = (init.stdout + init.stderr).strip().splitlines()

@@ -479,9 +479,10 @@ for b in utf8Bytes(c): append(result, '%' + twoUppercaseHexDigits(b))
 ## D. Targets
 
 Each target section starts with a `target` block of `key: value` lines read by the
-tool, followed by idiom notes passed verbatim to the generator. Only ported
-implementations are listed; a target is added here when it is generated from this
-file.
+tool (`file`, `harness`, `generated`, `comment`, and `forbid` lines the generated file
+must not start any line with), followed by idiom notes passed verbatim to the
+generator. Only ported implementations are listed; a target is added here when it is
+generated from this file.
 
 ### target python
 
@@ -490,6 +491,10 @@ file: python/stduritemplate/__init__.py
 harness: python
 generated: true
 comment: "#"
+forbid: import re
+forbid: "from re "
+forbid: import urllib
+forbid: from urllib
 ```
 
 - Must run on Python 3.8+: use `typing.Any`, `Dict`, `List`; no `match`, no `X | Y`
@@ -518,6 +523,9 @@ file: java/src/main/java/io/github/stduritemplate/StdUriTemplate.java
 harness: java
 generated: true
 comment: "//"
+forbid: import java.util.regex
+forbid: import java.net.URLEncoder
+forbid: import java.net.URLDecoder
 ```
 
 - Java 8 source level: no `var`, no switch expressions, no text blocks, no records,
@@ -552,6 +560,7 @@ file: csharp/Std.UriTemplate.cs
 harness: csharp
 generated: true
 comment: "//"
+forbid: using System.Text.RegularExpressions
 ```
 
 - Must compile for `netstandard2.0` and `net8.0` with `Nullable` enabled and
@@ -587,11 +596,13 @@ comment: "//"
 The contract is the fixture set, run by `tests/test.sh <lang>` and by
 `spec/specc.py build` through each target's `<harness>/test.sh`:
 
-- `uritemplate-test/spec-examples.json`
-- `uritemplate-test/spec-examples-by-section.json`
-- `uritemplate-test/extended-tests.json`
-- `uritemplate-test/negative-tests.json`
-- `uritemplate-test-additional/edge-cases.json`
+```conformance
+fixtures: uritemplate-test/spec-examples.json
+fixtures: uritemplate-test/spec-examples-by-section.json
+fixtures: uritemplate-test/extended-tests.json
+fixtures: uritemplate-test/negative-tests.json
+fixtures: uritemplate-test-additional/edge-cases.json
+```
 
 Decisions this spec makes explicitly, with the fixture that pins each:
 

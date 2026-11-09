@@ -1,5 +1,5 @@
 {
-  "spec_sha256": "b17b38a95ccb952468a4e2ab0af4c0a20895cd7c7680581582547ba330206c3b",
+  "spec_sha256": "e425ac90abca1f3d37c2759449927a5ae65693b08c50d0fdaa7cbf23add6b2b0",
   "targets": {
     "csharp": {
       "attempts": 1,
@@ -34,18 +34,20 @@
         "fn pctEncode": "fddfd4c1f0f470c09008279478b5093bbb461fa7d557da47ac64db3494c0df75",
         "fn validateVarchar": "0bc2ec240fcb77735e70435ae3e43fb72abb1b2bb35d174eb32e784fc2a7c8dc",
         "section A": "707a57c134b2a029ce4c16ae8c17589f7c364e039ad95c516a5484e0acfdf818",
+        "section B": "65847e49a751ce27d4375cf182c589d9dbb339f2bc104a470891745a6cfa69ef",
         "type Operator": "86d909497734b7e1317eba02d3bc2d58b144675a29c733ca3882efe98da3f8d5",
         "type SubstitutionType": "96fb5bb652f2aca56b2a8d66b4b983ac3762ae61dac23156b826e41046d2792b"
       },
       "cost_usd": 1.1112,
       "file": "csharp/Std.UriTemplate.cs",
       "generated_at": "2026-11-06T15:25:37Z",
-      "output_sha256": "61bd146505871932fb13cfb260f7cbcf14b46b89c9362e9da88b502fd1946e4d",
+      "output_sha256": "567f650caf326aac807b1fd41c8aa28c91dba5d6569059a0f47c8829f2d32241",
       "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
-      "target_notes_sha256": "b69899a19056dd8cf2eb7153daf30413d73e92a9c4e0e593073bc4abf4438c1f",
+      "target_notes_sha256": "1ee6f88cba272ce0bcb7ddb5cadc1e428d88ef90f4278e4e95c28ba7d9504bb8",
       "tck": {
         "cases": 446,
-        "result": "pass"
+        "result": "pass",
+        "verified_at": "2026-11-09T10:14:19Z"
       }
     },
     "java": {
@@ -81,18 +83,20 @@
         "fn pctEncode": "fddfd4c1f0f470c09008279478b5093bbb461fa7d557da47ac64db3494c0df75",
         "fn validateVarchar": "0bc2ec240fcb77735e70435ae3e43fb72abb1b2bb35d174eb32e784fc2a7c8dc",
         "section A": "707a57c134b2a029ce4c16ae8c17589f7c364e039ad95c516a5484e0acfdf818",
+        "section B": "65847e49a751ce27d4375cf182c589d9dbb339f2bc104a470891745a6cfa69ef",
         "type Operator": "86d909497734b7e1317eba02d3bc2d58b144675a29c733ca3882efe98da3f8d5",
         "type SubstitutionType": "96fb5bb652f2aca56b2a8d66b4b983ac3762ae61dac23156b826e41046d2792b"
       },
       "cost_usd": 0.4408,
       "file": "java/src/main/java/io/github/stduritemplate/StdUriTemplate.java",
       "generated_at": "2026-11-06T15:21:29Z",
-      "output_sha256": "e4df1f48618d75063fa7e16346ce31ad0a0407bc179cda154bb274b8c8230b99",
+      "output_sha256": "fa05f7f432cdcac2c2896ae649588a64ebccc2d9ce6860a7082a80e76e980656",
       "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
-      "target_notes_sha256": "84f0a838e4e5a8608e5be4e7fe3dbf22bfa0ef2a1fd03f61eeda2bb7e149a63a",
+      "target_notes_sha256": "031eef70c1ec8f9dfa926071227817af77929d4636d6bb4b9deaf094017f79e9",
       "tck": {
         "cases": 446,
-        "result": "pass"
+        "result": "pass",
+        "verified_at": "2026-11-09T10:14:40Z"
       }
     },
     "python": {
@@ -128,18 +132,20 @@
         "fn pctEncode": "fddfd4c1f0f470c09008279478b5093bbb461fa7d557da47ac64db3494c0df75",
         "fn validateVarchar": "0bc2ec240fcb77735e70435ae3e43fb72abb1b2bb35d174eb32e784fc2a7c8dc",
         "section A": "707a57c134b2a029ce4c16ae8c17589f7c364e039ad95c516a5484e0acfdf818",
+        "section B": "65847e49a751ce27d4375cf182c589d9dbb339f2bc104a470891745a6cfa69ef",
         "type Operator": "86d909497734b7e1317eba02d3bc2d58b144675a29c733ca3882efe98da3f8d5",
         "type SubstitutionType": "96fb5bb652f2aca56b2a8d66b4b983ac3762ae61dac23156b826e41046d2792b"
       },
       "cost_usd": 0.2688,
       "file": "python/stduritemplate/__init__.py",
       "generated_at": "2026-10-30T13:32:12Z",
-      "output_sha256": "20936ada992f813b211bf85e45ffb3db3e4a2fd9cc459552ed65e36bcf25a0c2",
+      "output_sha256": "7f465a86b69d598205d8936046cfcd991bcac0f53eb617074d80ea26edc5b2ba",
       "prompt_template_sha256": "f5c138381f9b514d501d32bf7021a5f8a53d7251b2c15ec86a747c68807ac0dc",
-      "target_notes_sha256": "f796b93babb5df4bbea6e8c5c85e8c667df9c6bc80a7c25b41f49f37e45c30ac",
+      "target_notes_sha256": "cf51cdc184aeef78ab4a1d5e21031f4e1b66cf912911de0e5bc736c8069c6c74",
       "tck": {
-        "cases": 284,
-        "result": "pass"
+        "cases": 446,
+        "result": "pass",
+        "verified_at": "2026-11-09T10:13:37Z"
       }
     }
   }

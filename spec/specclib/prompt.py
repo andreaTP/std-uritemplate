@@ -15,7 +15,7 @@ def render_prompt(project, user_tpl, spec, target, meta, changes, anchor, failur
         "{{TARGET}}": target,
         "{{HEADER}}": header,
         "{{SPEC_CORE}}": spec.core_text(),
-        "{{TARGET_SECTION}}": spec.targets[target]["section"],
+        "{{TARGET_SECTION}}": spec.targets[target]["prompt_section"],
         "{{CHANGES}}": changes,
         "{{ANCHOR}}": anchor,
         "{{FAILURES}}": failures,

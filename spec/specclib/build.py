@@ -21,7 +21,7 @@ def build(project, spec, args):
     lock = load_lock(project)
     prompt_text, system_tpl, user_tpl = load_prompt_template(project)
     hashes = spec.chunk_hashes()
-    notes_sha = sha256(normalize(spec.targets[target]["section"]))
+    notes_sha = sha256(normalize(spec.targets[target]["prompt_section"]))
     prev = lock["targets"].get(target)
 
     changed = []
@@ -33,7 +33,7 @@ def build(project, spec, args):
             changed.append("target notes")
         if prev["prompt_template_sha256"] != sha256(prompt_text):
             changed.append("prompt template")
-        if not changed and not args.force:
+        if not changed and not args.force and not args.dry_run:
             if lock.get("spec_sha256") != spec.sha or not header_current(project, spec, target, meta, out_path):
                 return refresh_header(project, spec, target, meta, lock, out_path)
             print("%s: up to date (no spec change since last build); use --force to regenerate" % target)
@@ -50,7 +50,10 @@ def build(project, spec, args):
             print("warning: %s differs from the lock (hand-edited?); using it as anchor anyway" % meta["file"])
     anchor_block = "```\n%s```" % anchor if anchor else "(none)"
 
-    cases = load_cases(project)
+    if args.dry_run:
+        print("=== system ===\n%s\n=== user ===\n%s" % (system_tpl, render_prompt(project, user_tpl, spec, target, meta, changes, anchor_block, "(none)")))
+        return 0
+    cases = load_cases(project, spec)
     failures_text = "(none)"
     stats = []
     for attempt in range(1, args.max_attempts + 1):
@@ -80,7 +83,7 @@ def build(project, spec, args):
                 "tck": {"cases": total, "result": "pass"},
                 "attempts": attempt,
                 "duration_ms": sum(stats),
-                "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "generated_at": utcnow(),
             }
             save_lock(project, lock)
             print("[%s] lock updated after %d attempt(s)" % (target, attempt))
@@ -107,3 +110,56 @@ def refresh_header(project, spec, target, meta, lock, out_path):
     save_lock(project, lock)
     print("%s: no chunk changed; refreshed the header hash without regenerating" % target)
     return 0
+
+
+def relock(project, spec, args):
+    """Re-pin a target without a model call: the file must be the locked output and no known chunk may have changed."""
+    target = args.target
+    if target not in spec.targets:
+        raise SpecError("unknown target %s" % target)
+    meta = spec.targets[target]["meta"]
+    lock = load_lock(project)
+    prev = lock["targets"].get(target)
+    if not prev:
+        raise SpecError("%s: no lock entry; use build" % target)
+    out_path = project.path(meta["file"])
+    if not os.path.exists(out_path):
+        raise SpecError("%s: %s missing" % (target, meta["file"]))
+    hashes = spec.chunk_hashes()
+    changed = [k for k, v in hashes.items() if k in prev["chunk_hashes"] and prev["chunk_hashes"][k] != v]
+    if changed:
+        print("%s: spec chunks changed (%s); that needs build, not relock" % (target, ", ".join(changed)))
+        return 1
+    with open(out_path, encoding="utf-8") as f:
+        content = f.read()
+    if sha256(content) != prev["output_sha256"]:
+        print("%s: %s differs from the locked output (hand edit?); that needs build, not relock" % (target, meta["file"]))
+        return 1
+    header = header_lines(project, spec, target, meta)
+    code = "\n".join(header + content.split("\n")[len(header):])
+    prompt_text, _, _ = load_prompt_template(project)
+    cases = load_cases(project, spec)
+    total, failures = run_tck(project, meta["harness"], cases=cases, jobs=args.jobs)
+    print("[%s] %d/%d cases passed" % (target, total - len(failures), total))
+    if failures:
+        print(format_failures(failures))
+        return 1
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(code)
+    lock = load_lock(project)
+    lock["targets"][target].update({
+        "file": meta["file"],
+        "output_sha256": sha256(code),
+        "chunk_hashes": hashes,
+        "target_notes_sha256": sha256(normalize(spec.targets[target]["prompt_section"])),
+        "prompt_template_sha256": sha256(prompt_text),
+        "tck": {"cases": total, "result": "pass", "verified_at": utcnow()},
+    })
+    lock["spec_sha256"] = spec.sha
+    save_lock(project, lock)
+    print("[%s] relocked without regenerating" % target)
+    return 0
+
+
+def utcnow():
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT.
-// Source: std-uritemplate.spec.md (sha256 b17b38a95ccb)
+// Source: std-uritemplate.spec.md (sha256 e425ac90abca)
 // Regenerate: python3 spec/specc.py build --target csharp
 
 namespace Std;

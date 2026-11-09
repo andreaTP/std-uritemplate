@@ -2,13 +2,6 @@ import os
 
 from .spec import header_lines, sha256
 
-FORBIDDEN_IMPORTS = {
-    "python": ["import re", "from re ", "import urllib", "from urllib"],
-    "java": ["import java.util.regex", "import java.net.URLEncoder", "import java.net.URLDecoder"],
-    "csharp": ["using System.Text.RegularExpressions"],
-}
-
-
 def header_current(project, spec, target, meta, out_path):
     if not os.path.exists(out_path):
         return False
@@ -42,14 +35,28 @@ def verify(project, spec, lock):
             problems.append("%s: file content differs from the lock (hand edit?)" % target)
         if entry["chunk_hashes"] != spec.chunk_hashes():
             problems.append("%s: spec chunks changed since generation" % target)
-        c = meta["comment"]
-        for kind, names in (("type", [n for n, _ in spec.types]), ("fn", [n for n, _, _ in spec.fns])):
-            for name in names:
-                marker = "%s spec: %s %s" % (c, kind, name)
-                count = sum(1 for line in content.splitlines() if line.strip() == marker)
-                if count != 1:
-                    problems.append("%s: marker '%s' found %d times" % (target, marker, count))
-        for needle in FORBIDDEN_IMPORTS.get(target, []):
+        problems.extend("%s: %s" % (target, p) for p in check_markers(spec, meta, content))
+        for needle in meta["forbid"]:
             if any(line.strip().startswith(needle) for line in content.splitlines()):
-                problems.append("%s: forbidden import '%s'" % (target, needle))
+                problems.append("%s: forbidden line '%s'" % (target, needle))
+    return problems
+
+
+def markers(spec, meta):
+    c = meta["comment"]
+    return ["%s spec: type %s" % (c, n) for n, _ in spec.types] + ["%s spec: fn %s" % (c, n) for n, _, _ in spec.fns]
+
+
+def check_markers(spec, meta, content):
+    """Every marker exactly once; fn markers in spec order (types sit where the idiom wants them)."""
+    expected = markers(spec, meta)
+    found = [line.strip() for line in content.splitlines() if line.strip() in set(expected)]
+    problems = []
+    for m in expected:
+        count = found.count(m)
+        if count != 1:
+            problems.append("marker '%s' found %d times" % (m, count))
+    fn_prefix = "%s spec: fn " % meta["comment"]
+    if not problems and [m for m in found if m.startswith(fn_prefix)] != [m for m in expected if m.startswith(fn_prefix)]:
+        problems.append("fn markers are not in spec order")
     return problems
