@@ -40,12 +40,18 @@ std-uritemplate.spec.md ──► specc.py build --target X ──► X's source
                                   │   (fail → feed the failing cases back, bounded)
                                   └─ std-uritemplate.lock.json
                                        spec, chunk, notes, prompt and output hashes,
-                                       backend, model, attempts, cost
+                                       backend, model, attempts, duration
 ```
 
 `specc.py check` is the CI side: headers carry the current spec hash, file hashes match
-the lock, every declared function has exactly one marker, no forbidden import. It never
-calls a model.
+the lock, every declared function has exactly one marker, in spec order, no forbidden
+line. It never calls a model; `check --tck` adds the conformance suites.
+
+The tool is a small standard-library Python package, `spec/specclib/`, with no knowledge
+of std-uritemplate: which file to write, which harness to run, which lines are forbidden
+and which fixtures decide are all declared in the spec. [`FORMAT.md`](FORMAT.md) defines
+the spec format, the lock schema and the backend and harness contracts, enough to drive a
+spec for a different library with the same tool.
 
 "Deterministic" means three things, each checked separately:
 
@@ -92,15 +98,24 @@ an API key for an OpenAI-compatible endpoint. Clone with `--recurse-submodules` 
 fixtures.
 
 ```
-python3 spec/specc.py parse                     # what the spec declares
+python3 spec/specc.py parse                     # what the spec declares (--json for tooling)
 python3 spec/specc.py check                     # no model: is everything consistent
-python3 spec/specc.py tck --target java         # conformance suite, parallel
+python3 spec/specc.py check --tck               # ... and do the three suites still pass
+python3 spec/specc.py tck --target java         # one conformance suite, parallel
+python3 spec/specc.py build --target java --dry-run   # print the prompts, call nothing
+python3 -m unittest discover -s spec/tests -t spec    # tests of the tool itself
 
 export OPENAI_API_KEY=sk-...
 export SPECC_BACKEND=spec/backends/openai_sdk.py SPECC_MODEL=gpt-5
 python3 spec/specc.py build --target java       # regenerate if the spec changed
 python3 spec/specc.py build --target java --force --model gpt-5-mini
+python3 spec/specc.py relock --target java      # re-pin after a change that touched no chunk
 ```
+
+Exit codes: 0 ok, 1 a verdict failed (check problems, failing cases, build gave up), 2 the
+tool could not run. `relock` exists for spec edits the model never sees (a `target` block,
+the fixture list, section E): it refuses if any chunk the lock knows has changed, re-runs
+the suite, and rewrites the header and the lock.
 
 ### Providing a model and a key
 
@@ -215,7 +230,7 @@ one section each and one attempt each.
 
 - `tests/test.sh` keeps its scratch files in `tests/` and is not reentrant; `specc.py
   tck` runs the same cases in parallel with private temp files. `tests/test.sh <lang>`
-  stays the official gate.
+  stays the official gate, and the `Test` workflow runs it for the three targets next to
+  a `Spec check` job (`specc.py check` plus the tool's tests).
 - The C# sources are a vendored copy of the separate `std-uritemplate-csharp` repository
   at the commit the submodule pointed to, with strong-name signing disabled.
-- The GitHub workflows on this branch still list the removed languages.
