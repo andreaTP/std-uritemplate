@@ -222,9 +222,17 @@ one section each and one attempt each.
   to measure the real cost of a new language.
 - **RFC decisions.** Each known divergence in section E becomes a fixture and a spec
   decision; the hand-written ports then have a failing test to fix.
-- **Tooling.** Per-function splicing instead of whole-file anchoring, a CI job for
-  `check`, a "weave" that renders spec and code side by side as documentation, a
-  documented procedure for upgrading the pinned model.
+- **Tooling.** Per-function splicing instead of whole-file anchoring, a "weave" that
+  renders spec and code side by side as documentation, a documented procedure for
+  upgrading the pinned model.
+- **A second library.** The tool has no std-uritemplate knowledge left, so the real test of
+  the approach is a spec for something else. Argon2 (RFC 9106) is a good candidate: a
+  precise algorithm with published test vectors, a handful of functions, and a long
+  history of ports that drift in the details.
+- **WebAssembly instead of ports.** A side spike: compile one implementation to Wasm and
+  bind it from every language, then compare with the generated ports on packaging, binary
+  size, call overhead on short strings, and how the native binding question looks from
+  each side.
 
 ## Caveats
 
